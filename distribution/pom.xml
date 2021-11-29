@@ -136,6 +136,7 @@
                                     </arguments>
                                 </configuration>
                             </execution>
+                            <!--
                             <execution>
                                 <id>generate-binary-license</id>
                                 <phase>initialize</phase>
@@ -165,7 +166,7 @@
                                         <argument>${project.parent.basedir}/NOTICE.BINARY</argument>
                                     </arguments>
                                 </configuration>
-                            </execution>
+                            </execution>-->
                             <execution>
                                 <id>pull-deps</id>
                                 <phase>package</phase>

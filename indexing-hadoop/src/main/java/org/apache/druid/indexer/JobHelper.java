@@ -153,7 +153,9 @@ public class JobHelper
     }
 
     for (String jarFilePath : jarFiles) {
-
+      if(jarFilePath.endsWith("idea_rt.jar")){
+        continue;
+      }
       final File jarFile = new File(jarFilePath);
       if (jarFile.getName().endsWith(".jar")) {
         try {
