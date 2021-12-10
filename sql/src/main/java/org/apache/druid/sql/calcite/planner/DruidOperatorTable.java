@@ -53,65 +53,7 @@ import org.apache.druid.sql.calcite.expression.SqlOperatorConversion;
 import org.apache.druid.sql.calcite.expression.UnaryFunctionOperatorConversion;
 import org.apache.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
 import org.apache.druid.sql.calcite.expression.UnarySuffixOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayAppendOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayConcatOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayConstructorOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayContainsOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayLengthOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayOffsetOfOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayOffsetOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayOrdinalOfOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayOrdinalOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayOverlapOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayPrependOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArraySliceOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ArrayToStringOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.CastOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.CeilOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ConcatOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ContainsOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ExtractOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.FloorOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.GreatestOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.HumanReadableFormatOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.IPv4AddressMatchOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.IPv4AddressParseOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.IPv4AddressStringifyOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.LPadOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.LTrimOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.LeastOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.LeftOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.LikeOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.MillisToTimestampOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.MultiValueStringOperatorConversions;
-import org.apache.druid.sql.calcite.expression.builtin.ParseLongOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.PositionOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.RPadOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.RTrimOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.RegexpExtractOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.RegexpLikeOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ReinterpretOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.RepeatOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.ReverseOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.RightOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.RoundOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.StringFormatOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.StringToArrayOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.StrposOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.SubstringOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TextcatOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimeArithmeticOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimeCeilOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimeExtractOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimeFloorOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimeFormatOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimeParseOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimeShiftOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TimestampToMillisOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TrimOperatorConversion;
-import org.apache.druid.sql.calcite.expression.builtin.TruncateOperatorConversion;
+import org.apache.druid.sql.calcite.expression.builtin.*;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -221,6 +163,7 @@ public class DruidOperatorTable implements SqlOperatorTable
                    .add(new ArraySliceOperatorConversion())
                    .add(new ArrayToStringOperatorConversion())
                    .add(new StringToArrayOperatorConversion())
+                  .add(new VirtualColumnsOperatorConversion())
                    .build();
 
   private static final List<SqlOperatorConversion> MULTIVALUE_STRING_OPERATOR_CONVERSIONS =
