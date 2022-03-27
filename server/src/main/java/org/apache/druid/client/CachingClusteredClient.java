@@ -56,24 +56,12 @@ import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
-import org.apache.druid.query.BySegmentResultValueClass;
-import org.apache.druid.query.CacheStrategy;
-import org.apache.druid.query.DruidProcessingConfig;
-import org.apache.druid.query.Queries;
-import org.apache.druid.query.Query;
-import org.apache.druid.query.QueryContexts;
-import org.apache.druid.query.QueryMetrics;
-import org.apache.druid.query.QueryPlus;
-import org.apache.druid.query.QueryRunner;
-import org.apache.druid.query.QuerySegmentWalker;
-import org.apache.druid.query.QueryToolChest;
-import org.apache.druid.query.QueryToolChestWarehouse;
-import org.apache.druid.query.Result;
-import org.apache.druid.query.SegmentDescriptor;
+import org.apache.druid.query.*;
 import org.apache.druid.query.aggregation.MetricManipulatorFns;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.context.ResponseContext.Key;
 import org.apache.druid.query.filter.DimFilterUtils;
+import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.planning.DataSourceAnalysis;
 import org.apache.druid.query.spec.QuerySegmentSpec;
 import org.apache.druid.segment.join.JoinableFactory;
@@ -110,12 +98,6 @@ import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
-/**
- * This is the class on the Broker that is responsible for making native Druid queries to a cluster of data servers.
- *
- * The main user of this class is {@link org.apache.druid.server.ClientQuerySegmentWalker}. In tests, its behavior
- * is partially mimicked by TestClusterQuerySegmentWalker.
- */
 public class CachingClusteredClient implements QuerySegmentWalker
 {
   private static final EmittingLogger log = new EmittingLogger(CachingClusteredClient.class);
@@ -430,6 +412,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
     {
       final java.util.function.Function<Interval, List<TimelineObjectHolder<String, ServerSelector>>> lookupFn
           = specificSegments ? timeline::lookupWithIncompletePartitions : timeline::lookup;
+      //查询segment所在的historical和realtimesever
       final List<TimelineObjectHolder<String, ServerSelector>> serversLookup = toolChest.filterSegments(
           query,
           intervals.stream().flatMap(i -> lookupFn.apply(i).stream()).collect(Collectors.toList())
@@ -437,7 +420,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
 
       final Set<SegmentServerSelector> segments = new LinkedHashSet<>();
       final Map<String, Optional<RangeSet<String>>> dimensionRangeCache = new HashMap<>();
-      // Filter unneeded chunks based on partition dimension
+      //基于分区维度过滤不需要的块
       for (TimelineObjectHolder<String, ServerSelector> holder : serversLookup) {
         final Set<PartitionChunk<ServerSelector>> filteredChunks;
         if (QueryContexts.isSecondaryPartitionPruningEnabled(query)) {
@@ -452,6 +435,20 @@ public class CachingClusteredClient implements QuerySegmentWalker
         }
         for (PartitionChunk<ServerSelector> chunk : filteredChunks) {
           ServerSelector server = chunk.getObject();
+          //只针对metrics-agg1m-bak过滤
+          {
+            DataSource dataSource = query.getDataSource();
+            if (dataSource.getTableNames().contains("metrics_agg1m")) {
+              if( query.getFilter() instanceof  SelectorDimFilter){
+                SelectorDimFilter dimFilter = (SelectorDimFilter) query.getFilter();
+                String dim = dimFilter.getDimension();
+                String value = dimFilter.getValue();
+                if (server.getRealtimeServers().size() > 0) {
+                  log.info(dim +"-->"+value);
+                }
+              }
+            }
+          }
           final SegmentDescriptor segment = new SegmentDescriptor(
               holder.getInterval(),
               holder.getVersion(),

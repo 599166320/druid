@@ -219,6 +219,12 @@ public class ForkingTaskRunner
                           );
                         }
 
+                        /*command.add("-Xdebug");
+                        command.add("-Xnoagent");
+                        command.add("-Djava.compiler=NONE");
+                        command.add("-Xrunjdwp:transport=dt_socket,address=10000,server=y,suspend=n");*/
+
+
                         for (String propName : props.stringPropertyNames()) {
                           for (String allowedPrefix : config.getAllowedPrefixes()) {
                             // See https://github.com/apache/druid/issues/1841

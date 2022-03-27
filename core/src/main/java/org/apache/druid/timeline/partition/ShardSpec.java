@@ -38,6 +38,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "linear", value = LinearShardSpec.class),
     @JsonSubTypes.Type(name = "numbered", value = NumberedShardSpec.class),
     @JsonSubTypes.Type(name = "hashed", value = HashBasedNumberedShardSpec.class),
+    @JsonSubTypes.Type(name = KafkaPartitionNumberedShardSpec.TYPE, value = KafkaPartitionNumberedShardSpec.class),
     @JsonSubTypes.Type(name = NumberedOverwriteShardSpec.TYPE, value = NumberedOverwriteShardSpec.class),
     // BuildingShardSpecs are the shardSpec with missing numCorePartitions, and thus must not be published.
     // See BuildingShardSpec for more details.

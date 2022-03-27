@@ -51,11 +51,15 @@ import org.apache.druid.segment.realtime.appenderator.Appenderator;
 import org.apache.druid.segment.realtime.appenderator.StreamAppenderatorDriver;
 import org.apache.druid.segment.realtime.firehose.ChatHandler;
 import org.apache.druid.server.security.AuthorizerMapper;
+import org.apache.druid.timeline.partition.KafkaPartitionBasedNumberedPartialShardSpec;
 import org.apache.druid.timeline.partition.NumberedPartialShardSpec;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 public abstract class SeekableStreamIndexTask<PartitionIdType, SequenceOffsetType, RecordType extends ByteEntity>
@@ -203,10 +207,11 @@ public abstract class SeekableStreamIndexTask<PartitionIdType, SequenceOffsetTyp
   }
 
   public StreamAppenderatorDriver newDriver(
-      final Appenderator appenderator,
-      final TaskToolbox toolbox,
-      final FireDepartmentMetrics metrics
-  )
+          final Appenderator appenderator,
+          final TaskToolbox toolbox,
+          final FireDepartmentMetrics metrics,
+          final Set<PartitionIdType> partitionIdTypeSet
+          )
   {
     return new StreamAppenderatorDriver(
         appenderator,

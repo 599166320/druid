@@ -208,4 +208,8 @@ public class ServerSelector implements Overshadowable<ServerSelector>
   {
     return segment.get().getAtomicUpdateGroupSize();
   }
+
+  public Int2ObjectRBTreeMap<Set<QueryableDruidServer>> getRealtimeServers(){
+    return realtimeServers;
+  }
 }
