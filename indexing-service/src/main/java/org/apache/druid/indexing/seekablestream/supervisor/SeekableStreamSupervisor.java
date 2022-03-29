@@ -3232,6 +3232,7 @@ public abstract class SeekableStreamSupervisor<PartitionIdType, SequenceOffsetTy
                 )
             );
           } else {
+            //offset无效
             throw new StreamException(
                 new ISE(
                     "Previous sequenceNumber [%s] is no longer available for partition [%s]. You can clear the previous"

@@ -259,6 +259,10 @@ public class KafkaRecordSupplier implements RecordSupplier<Integer, Long, KafkaR
     props.putIfAbsent("isolation.level", "read_committed");
     props.putIfAbsent("group.id", StringUtils.format("kafka-supervisor-%s", IdUtils.getRandomId()));
     props.putAll(consumerConfigs);
+    props.remove("kafkaTotalPartition");
+    props.remove("partitionDimensions");
+    props.remove("partitionFunction");
+    props.remove("fixedPartitionEnd");
 
     ClassLoader currCtxCl = Thread.currentThread().getContextClassLoader();
     try {
