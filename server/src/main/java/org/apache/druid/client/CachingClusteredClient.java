@@ -420,6 +420,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
 
       final Set<SegmentServerSelector> segments = new LinkedHashSet<>();
       final Map<String, Optional<RangeSet<String>>> dimensionRangeCache = new HashMap<>();
+      int  original = 0;
       //基于分区维度过滤不需要的块
       for (TimelineObjectHolder<String, ServerSelector> holder : serversLookup) {
         final Set<PartitionChunk<ServerSelector>> filteredChunks;
@@ -433,10 +434,15 @@ public class CachingClusteredClient implements QuerySegmentWalker
         } else {
           filteredChunks = Sets.newHashSet(holder.getObject());
         }
+        //测试代码start
+        for (Object obj : holder.getObject()) {
+          original++;
+        }
+        //测试代码end
         for (PartitionChunk<ServerSelector> chunk : filteredChunks) {
           ServerSelector server = chunk.getObject();
           //只针对metrics-agg1m-bak过滤
-          {
+          /*{
             DataSource dataSource = query.getDataSource();
             if (dataSource.getTableNames().contains("metrics_agg1m")) {
               if( query.getFilter() instanceof  SelectorDimFilter){
@@ -448,7 +454,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
                 }
               }
             }
-          }
+          }*/
           final SegmentDescriptor segment = new SegmentDescriptor(
               holder.getInterval(),
               holder.getVersion(),
@@ -457,6 +463,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
           segments.add(new SegmentServerSelector(server, segment));
         }
       }
+      log.info("原本需要查询的segment数量是:"+original+",结果优化之后，查询的segment数量是"+segments.size());
       return segments;
     }
 

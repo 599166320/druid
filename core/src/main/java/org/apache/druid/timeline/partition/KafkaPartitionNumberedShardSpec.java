@@ -172,9 +172,12 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         ).stream().map(o->o.toString()).collect(Collectors.toList());
         //由于存在热点指标,除了考虑hash分区外还要考虑枚举分区,枚举分区需要使用groupKey查询nacos
         String kjoin = String.join(",",groupKey);
+        String partitionLog = "";
         try {
+            partitionLog = "当前检查的segment分区列表是:"+jsonMapper.writeValueAsString(kafkaPartitionIds);
             MetricsRtCustomPartitionsConf metricsRtCustomPartitionsConf = jsonMapper.readValue(partitionFunction,MetricsRtCustomPartitionsConf.class);
             int status = metricsRtCustomPartitionsConf.fixPartition(kjoin,kafkaPartitionIds);
+            log.info("固定分区检查key:"+kjoin+",检查结果是:"+status+","+partitionLog);
             if (status!=2){
                 return status==1?true:false;
             }
@@ -182,6 +185,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
             log.error("计算固定分区异常:"+e.getMessage());
         }
         int hashValue = hash(serializeGroupKey(jsonMapper, groupKey))+fixedPartitionEnd;
+        log.info("hash分区检查key:"+kjoin+",检查结果是:"+hashValue+","+partitionLog);
         return  kafkaPartitionIds.contains(hashValue);
     }
 
@@ -364,7 +368,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
 
     public static void main(String[] args) throws JsonProcessingException {
         ObjectMapper configMapper = new ObjectMapper();
-        String partitionFunction = "{\"partitionMap\":{\"d03c58e83118992a6ea09fbf760a4a97\":4,\"f55da3de808dc0ccbd7805f58b549c37\":2,\"dcf4f2f1e9354dfa05c2e3c29582e452\":4,\"44117f941760aad8e89968706035bd4c\":3,\"1bbf0542e07c2a7e2d7094dd5643ed19\":1,\"4f0f8d42f869a7f5b1d49a5da253823d\":3,\"3044423f50507b5f2aec45b9e4ce606e\":3,\"edb9f84cbcb7ba0209f2bb04add22918\":4,\"ead3523187aefb72a481249b9a2add22\":4,\"945ddfcc12d1d1ea9a0e0f80d16b60a2\":3,\"0f64a88f7912246b878d1f2e5b4b5bfd\":4,\"972fe94bf5080347f0db88d3aa8df7dc\":2,\"61a769bbc91bfb8eae2254ce6ffe46cb\":2},\"dataSkewMap\":{\"mybatis_latency_bucket,qa\":[0]},\"partitionDimensions\":\"name,env\",\"partitionNum\":12,\"customPartitionNum\":5}";
+        String partitionFunction = "{\"partitionDimensions\":\"app,name,cluster\",\"partitionNum\":12,\"customPartitionNum\":0,\"partitionMap\":{},\"dataSkewMap\":{}}";
         KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf conf = configMapper.copy().configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true).readValue(partitionFunction,KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf.class);
         System.out.println(conf);
     }
