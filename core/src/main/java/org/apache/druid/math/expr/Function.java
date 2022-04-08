@@ -3659,12 +3659,15 @@ public interface Function
       final String keyName = keyNameExprEval.asString();
       int i = -1;
       Object[] keyArr  = keys.asArray();
-      for(int j = 0;j < keyArr.length ;j++){
-        if(Objects.equals(keyArr[j], keyName)){
-          i = j;
-          break;
+      if(keyArr != null && values != null){
+        for(int j = 0;j < keyArr.length ;j++){
+          if(Objects.equals(keyArr[j], keyName)){
+            i = j;
+            break;
+          }
         }
       }
+
       if ( i== -1 ){
         return ExprEval.of(null);
       }
