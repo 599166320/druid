@@ -1,0 +1,23 @@
+package org.apache.druid.query.core;
+
+public interface InBit
+{
+    boolean read();
+
+    default int readInt()
+    {
+        return readToInt(32);
+    }
+
+    default long readLong()
+    {
+        return read(64);
+    }
+
+    default int readToInt(int size)
+    {
+        return (int) read(size);
+    }
+
+    long read(int size);
+}

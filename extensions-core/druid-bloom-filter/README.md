@@ -1,0 +1,10 @@
+# common文件里面添加
+
+    druid.sql.planner.serializeComplexValues=true
+
+# sql
+
+    SELECT
+    BLOOM_FILTER(app,15000),
+    BLOOM_FILTER_TEST('aa','BAAAAAgAAAAAAAAAAgAAAAAAAAAIAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAA')
+    FROM metrics_agg1m_bak

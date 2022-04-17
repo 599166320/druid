@@ -114,6 +114,7 @@ import org.apache.druid.query.SegmentDescriptor;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
 import org.apache.druid.query.aggregation.DoubleSumAggregatorFactory;
+import org.apache.druid.query.aggregation.TimestampMaxAggregatorFactory;
 import org.apache.druid.query.filter.SelectorDimFilter;
 import org.apache.druid.query.scan.ScanQuery;
 import org.apache.druid.query.scan.ScanQueryConfig;
@@ -1191,7 +1192,8 @@ public class KafkaIndexTaskTest extends SeekableStreamIndexTaskTestBase
             ),
             new AggregatorFactory[]{
                 new DoubleSumAggregatorFactory("met1sum", "met1"),
-                new CountAggregatorFactory("rows")
+                new CountAggregatorFactory("rows"),
+                new TimestampMaxAggregatorFactory("timestamp","timestamp", "iso")
             },
             new UniformGranularitySpec(Granularities.DAY, Granularities.NONE, null),
             null

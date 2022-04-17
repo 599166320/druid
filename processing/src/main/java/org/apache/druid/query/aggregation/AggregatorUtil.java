@@ -144,7 +144,8 @@ public class AggregatorUtil
   // expression lambda aggregator
   public static final byte EXPRESSION_LAMBDA_CACHE_TYPE_ID = 0x47;
 
-
+  public static final byte GORILLA_CACHE_TYPE_ID = 0x48;
+  public static final byte GORILLA_MERGE_CACHE_TYPE_ID = 0x49;
   /**
    * returns the list of dependent postAggregators that should be calculated in order to calculate given postAgg
    *

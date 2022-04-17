@@ -159,9 +159,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     final AtomicInteger numEntries = getNumEntries();
     final AtomicLong sizeInBytes = getBytesInMemory();
     if (IncrementalIndexRow.EMPTY_ROW_INDEX != priorIndex) {
+      //聚合器已经初始化
       aggs = concurrentGet(priorIndex);
       doAggregate(metrics, aggs, rowContainer, row, parseExceptionMessages);
     } else {
+      //初始化key对应的聚合器
       aggs = new Aggregator[metrics.length];
       factorizeAggs(metrics, aggs, rowContainer, row);
       doAggregate(metrics, aggs, rowContainer, row, parseExceptionMessages);

@@ -83,7 +83,7 @@ public abstract class AggregatorFactory implements Cacheable
    * BufferAggregator#get} produced via {@link #factorizeBuffered}. Note, even though this method is called "combine",
    * this method's contract *does* allow for mutation of the input objects. Thus, any use of lhs or rhs after calling
    * this method is highly discouraged.
-   *
+   *合并 Aggregator#get+BufferAggregator#get
    * @param lhs The left hand side of the combine
    * @param rhs The right hand side of the combine
    *
@@ -97,7 +97,7 @@ public abstract class AggregatorFactory implements Cacheable
    * index merging. AggregateCombiner implements the same logic as {@link #combine}, with the difference that it uses
    * {@link org.apache.druid.segment.ColumnValueSelector} and it's subinterfaces to get inputs and implements {@code
    * ColumnValueSelector} to provide output.
-   *
+   *聚合来自不通的索引的输入，输入使用ColumnValueSelector和子类来输入
    * @see AggregateCombiner
    * @see org.apache.druid.segment.IndexMerger
    */
