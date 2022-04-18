@@ -463,7 +463,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
           segments.add(new SegmentServerSelector(server, segment));
         }
       }
-      log.info("原本需要查询的segment数量是:"+original+",结果优化之后，查询的segment数量是"+segments.size());
+      log.debug("原本需要查询的segment数量是:"+original+",结果优化之后，查询的segment数量是"+segments.size());
       return segments;
     }
 

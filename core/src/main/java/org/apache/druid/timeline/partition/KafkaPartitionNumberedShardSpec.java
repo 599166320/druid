@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -16,6 +17,7 @@ import org.apache.druid.data.input.Rows;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -177,7 +179,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
             partitionLog = "当前检查的segment分区列表是:"+jsonMapper.writeValueAsString(kafkaPartitionIds);
             MetricsRtCustomPartitionsConf metricsRtCustomPartitionsConf = jsonMapper.readValue(partitionFunction,MetricsRtCustomPartitionsConf.class);
             int status = metricsRtCustomPartitionsConf.fixPartition(kjoin,kafkaPartitionIds);
-            log.info("固定分区检查key:"+kjoin+",检查结果是:"+status+","+partitionLog);
+            log.debug("固定分区检查key:"+kjoin+",检查结果是:"+status+","+partitionLog);
             if (status!=2){
                 return status==1?true:false;
             }
@@ -185,7 +187,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
             log.error("计算固定分区异常:"+e.getMessage());
         }
         int hashValue = hash(serializeGroupKey(jsonMapper, groupKey))+fixedPartitionEnd;
-        log.info("hash分区检查key:"+kjoin+",检查结果是:"+hashValue+","+partitionLog);
+        log.debug("hash分区检查key:"+kjoin+",检查结果是:"+hashValue+","+partitionLog);
         return  kafkaPartitionIds.contains(hashValue);
     }
 
