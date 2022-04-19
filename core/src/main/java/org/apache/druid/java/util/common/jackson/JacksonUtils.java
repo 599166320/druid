@@ -27,6 +27,7 @@ import java.util.Map;
 
 public final class JacksonUtils
 {
+  public static final ObjectMapper JSON_MAPPER = new ObjectMapper();
   public static final TypeReference<Map<String, Object>> TYPE_REFERENCE_MAP_STRING_OBJECT =
       new TypeReference<Map<String, Object>>()
       {

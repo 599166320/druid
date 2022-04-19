@@ -14,11 +14,13 @@ import com.google.common.collect.RangeSet;
 import org.apache.commons.lang.StringUtils;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.Rows;
+import org.apache.druid.java.util.common.jackson.JacksonUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,9 +31,9 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
     private final Set<Integer> kafkaPartitionIds;
     private final int kafkaTotalPartition;
     private final List<String> partitionDimensions;
-    private final String partitionFunction;
+    private  String partitionFunction;
     private final int fixedPartitionEnd;
-    private final ObjectMapper jsonMapper;
+    private final ObjectMapper jsonMapper1;
 
     @Nullable
     @JsonProperty
@@ -59,6 +61,10 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         return partitionFunction;
     }
 
+    public void setPartitionFunction(String partitionFunction) {
+        this.partitionFunction = partitionFunction;
+    }
+
     @JsonCreator
     public KafkaPartitionNumberedShardSpec(
             @JsonProperty("partitionNum") int partitionNum,    // partitionId
@@ -79,7 +85,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         int p = 0;
         if(StringUtils.isNotBlank(partitionFunction) && partitionFunction.length()>=5){
             try {
-                MetricsRtCustomPartitionsConf metricsRtCustomPartitionsConf = jsonMapper.readValue(partitionFunction,MetricsRtCustomPartitionsConf.class);
+                MetricsRtCustomPartitionsConf metricsRtCustomPartitionsConf = MetricsRtCustomPartitionsConf.newMetricsRtCustomPartitionsConf(partitionFunction);
                 p = metricsRtCustomPartitionsConf.getCustomPartitionNum();
             }catch (Exception e){
                 log.warn("MetricsRtCustomPartitionsConf解析异常:"+partitionFunction);
@@ -87,7 +93,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         }
         //必须最后设置
         this.fixedPartitionEnd = p;
-        this.jsonMapper = jsonMapper;
+        this.jsonMapper1 = jsonMapper;
     }
 
     private boolean notKafkaPartitionNumberShardSpec(){
@@ -176,8 +182,12 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         String kjoin = String.join(",",groupKey);
         String partitionLog = "";
         try {
-            partitionLog = "当前检查的segment分区列表是:"+jsonMapper.writeValueAsString(kafkaPartitionIds);
-            MetricsRtCustomPartitionsConf metricsRtCustomPartitionsConf = jsonMapper.readValue(partitionFunction,MetricsRtCustomPartitionsConf.class);
+            partitionLog = "当前检查的segment分区列表是:"+JacksonUtils.JSON_MAPPER.writeValueAsString(kafkaPartitionIds);
+            MetricsRtCustomPartitionsConf metricsRtCustomPartitionsConf = MetricsRtCustomPartitionsConf.newMetricsRtCustomPartitionsConf(partitionFunction);
+            if(metricsRtCustomPartitionsConf.inRandomWriteList(kjoin)){
+                //随机写不做任何优化
+                return true;
+            }
             int status = metricsRtCustomPartitionsConf.fixPartition(kjoin,kafkaPartitionIds);
             log.debug("固定分区检查key:"+kjoin+",检查结果是:"+status+","+partitionLog);
             if (status!=2){
@@ -186,7 +196,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         }catch (Exception e){
             log.error("计算固定分区异常:"+e.getMessage());
         }
-        int hashValue = hash(serializeGroupKey(jsonMapper, groupKey))+fixedPartitionEnd;
+        int hashValue = hash(serializeGroupKey(JacksonUtils.JSON_MAPPER, groupKey))+fixedPartitionEnd;
         log.debug("hash分区检查key:"+kjoin+",检查结果是:"+hashValue+","+partitionLog);
         return  kafkaPartitionIds.contains(hashValue);
     }
@@ -213,7 +223,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
     Integer hash(final long timestamp, final InputRow inputRow)
     {
         return HashPartitionFunction.MURMUR3_32_ABS.hash(
-                HashBasedNumberedShardSpec.serializeGroupKey(jsonMapper, extractKeys(timestamp, inputRow)),
+                HashBasedNumberedShardSpec.serializeGroupKey(JacksonUtils.JSON_MAPPER, extractKeys(timestamp, inputRow)),
                 kafkaTotalPartition-fixedPartitionEnd
         );
     }
@@ -253,6 +263,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         private int customPartitionNum;
         private Map<String,Set<Integer>> dataSkewMap;
         private String partitionDimensions;
+        private Set<String> randomWriteList;
 
         @JsonCreator
         public MetricsRtCustomPartitionsConf(
@@ -260,14 +271,22 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
                 @JsonProperty("partitionNum") int partitionNum,
                 @JsonProperty("customPartitionNum") int customPartitionNum,
                 @JsonProperty("dataSkewMap") Map<String,Set<Integer>> dataSkewMap,
-                @JsonProperty("partitionDimensions") String partitionDimensions
+                @JsonProperty("partitionDimensions") String partitionDimensions,
+                @JsonProperty("randomWriteList") Set<String> randomWriteList
         ){
             this.partitionMap = partitionMap;
             this.partitionNum = partitionNum;
             this.customPartitionNum = customPartitionNum;
             this.dataSkewMap = dataSkewMap;
             this.partitionDimensions = partitionDimensions;
+            this.randomWriteList = randomWriteList;
         }
+
+
+        public static MetricsRtCustomPartitionsConf newMetricsRtCustomPartitionsConf(String partitionFunction) throws JsonProcessingException {
+            return JacksonUtils.JSON_MAPPER.readValue(partitionFunction,MetricsRtCustomPartitionsConf.class);
+        }
+
 
         public String getPartitionDimensions() {
             return partitionDimensions;
@@ -309,6 +328,17 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
             this.dataSkewMap = dataSkewMap;
         }
 
+        public Set<String> getRandomWriteList() {
+            return randomWriteList;
+        }
+
+        public void setRandomWriteList(Set<String> randomWriteList) {
+            this.randomWriteList = randomWriteList;
+        }
+
+        public boolean inRandomWriteList(String values){
+            return randomWriteList.contains(values);
+        }
         /**
          *
          * @param values
@@ -341,10 +371,10 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         }
 
         public static String getMD5(byte[] source) throws Exception {
-            String s = null;
+            String s;
             char[] hexDigits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
             try {
-                java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+                MessageDigest md = MessageDigest.getInstance("MD5");
                 md.update(source);
                 byte[] tmp = md.digest(); // MD5 的计算结果是一个 128 位的长整数，
                 // 用字节表示就是 16 个字节
@@ -369,9 +399,10 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
     }
 
     public static void main(String[] args) throws JsonProcessingException {
-        ObjectMapper configMapper = new ObjectMapper();
-        String partitionFunction = "{\"partitionDimensions\":\"app,name,cluster\",\"partitionNum\":12,\"customPartitionNum\":0,\"partitionMap\":{},\"dataSkewMap\":{}}";
+        ObjectMapper configMapper = JacksonUtils.JSON_MAPPER;
+        String partitionFunction = "{\"partitionMap\":{\"d03c58e83118992a6ea09fbf760a4a97\":4,\"f55da3de808dc0ccbd7805f58b549c37\":2,\"dcf4f2f1e9354dfa05c2e3c29582e452\":4,\"44117f941760aad8e89968706035bd4c\":3,\"1bbf0542e07c2a7e2d7094dd5643ed19\":1,\"4f0f8d42f869a7f5b1d49a5da253823d\":3,\"3044423f50507b5f2aec45b9e4ce606e\":3,\"edb9f84cbcb7ba0209f2bb04add22918\":4,\"ead3523187aefb72a481249b9a2add22\":4,\"945ddfcc12d1d1ea9a0e0f80d16b60a2\":3,\"0f64a88f7912246b878d1f2e5b4b5bfd\":4,\"972fe94bf5080347f0db88d3aa8df7dc\":2,\"61a769bbc91bfb8eae2254ce6ffe46cb\":2},\"dataSkewMap\":{\"mybatis_latency_bucket,qa\":[0]},\"partitionDimensions\":\"name,env\",\"partitionNum\":12,\"customPartitionNum\":5,\"randomWriteList\":[]}";
         KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf conf = configMapper.copy().configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true).readValue(partitionFunction,KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf.class);
         System.out.println(conf);
+        System.out.println(configMapper.writeValueAsString(conf));
     }
 }

@@ -35,6 +35,7 @@ import org.apache.druid.indexing.seekablestream.common.OrderedSequenceNumber;
 import org.apache.druid.indexing.seekablestream.common.RecordSupplier;
 import org.apache.druid.indexing.seekablestream.common.StreamPartition;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.jackson.JacksonUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.segment.realtime.appenderator.AppenderatorDriverAddResult;
 import org.apache.druid.server.security.AuthorizerMapper;
@@ -248,7 +249,16 @@ public class IncrementalPublishingKafkaIndexTaskRunner extends SeekableStreamInd
     ShardSpec shardSpec = addResult.getSegmentIdentifier().getShardSpec();
     if(shardSpec instanceof KafkaPartitionNumberedShardSpec){
       KafkaPartitionNumberedShardSpec kafkaPartitionNumberedShardSpec = (KafkaPartitionNumberedShardSpec)shardSpec;
-      kafkaPartitionNumberedShardSpec.getKafkaPartitionIds().add(record.getPartitionId());
+      boolean isUpdate = kafkaPartitionNumberedShardSpec.getKafkaPartitionIds().add(record.getPartitionId());
+      if(isUpdate){
+        try {
+          kafkaPartitionNumberedShardSpec.setPartitionFunction(task.updateKafkaTotalPartition(kafkaPartitionNumberedShardSpec.getKafkaPartitionIds(),kafkaPartitionNumberedShardSpec.getPartitionFunction()));
+          log.info("kafkaPartitionIds success to update:%s",JacksonUtils.JSON_MAPPER.writeValueAsString(kafkaPartitionNumberedShardSpec.getKafkaPartitionIds()));
+          log.info("partitionFunction success to update:%s",kafkaPartitionNumberedShardSpec.getPartitionFunction());
+        }catch (Exception e){
+          log.error(e,"Fail to update shard");
+        }
+      }
     }
   }
 }

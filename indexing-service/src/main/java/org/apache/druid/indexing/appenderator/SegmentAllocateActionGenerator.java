@@ -19,6 +19,7 @@
 
 package org.apache.druid.indexing.appenderator;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.indexing.common.actions.TaskAction;
 import org.apache.druid.segment.indexing.DataSchema;
@@ -40,5 +41,5 @@ public interface SegmentAllocateActionGenerator
       String sequenceName,
       String previousSegmentId,
       boolean skipSegmentLineageCheck
-  );
+  ) throws JsonProcessingException;
 }
