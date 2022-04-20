@@ -252,7 +252,7 @@ public class IncrementalPublishingKafkaIndexTaskRunner extends SeekableStreamInd
       boolean isUpdate = kafkaPartitionNumberedShardSpec.getKafkaPartitionIds().add(record.getPartitionId());
       if(isUpdate){
         try {
-          kafkaPartitionNumberedShardSpec.setPartitionFunction(task.updateKafkaTotalPartition(kafkaPartitionNumberedShardSpec.getKafkaPartitionIds(),kafkaPartitionNumberedShardSpec.getPartitionFunction()));
+          kafkaPartitionNumberedShardSpec.updateKafkaTotalPartition(kafkaPartitionNumberedShardSpec.getKafkaPartitionIds(),kafkaPartitionNumberedShardSpec.getPartitionFunction());
           log.info("kafkaPartitionIds success to update:%s",JacksonUtils.JSON_MAPPER.writeValueAsString(kafkaPartitionNumberedShardSpec.getKafkaPartitionIds()));
           log.info("partitionFunction success to update:%s",kafkaPartitionNumberedShardSpec.getPartitionFunction());
         }catch (Exception e){

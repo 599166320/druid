@@ -180,7 +180,6 @@ public class KafkaIndexTask extends SeekableStreamIndexTask<Integer, Long, Kafka
       log.info("kafkaTotalPartition is: [%s].", kafkaTotalPartition);
       log.info("fixedPartitionEnd is: [%s].", fixedPartitionEnd);
       log.info("partitionDimensions is: [%s].", conf.getPartitionDimensions());
-
       return new StreamAppenderatorDriver(
               appenderator,
               new ActionBasedSegmentAllocator(
@@ -194,7 +193,7 @@ public class KafkaIndexTask extends SeekableStreamIndexTask<Integer, Long, Kafka
                               sequenceName,
                               previousSegmentId,
                               skipSegmentLineageCheck,
-                              new KafkaPartitionBasedNumberedPartialShardSpec(Arrays.asList(conf.getPartitionDimensions().split(",")),new HashSet<>(partitionIdTypeSet), kafkaTotalPartition, updateKafkaTotalPartition(partitionIdTypeSet,partitionFunction),fixedPartitionEnd),
+                              new KafkaPartitionBasedNumberedPartialShardSpec(Arrays.asList(conf.getPartitionDimensions().split(",")),new HashSet<>(partitionIdTypeSet), kafkaTotalPartition, partitionFunction,fixedPartitionEnd),
                               lockGranularityToUse
                       )
               ),
@@ -205,45 +204,8 @@ public class KafkaIndexTask extends SeekableStreamIndexTask<Integer, Long, Kafka
               metrics
       );
     }catch (Exception e){
-      e.printStackTrace();
-      log.error("反序列化MetricsRtCustomPartitionsConf失败:"+partitionFunction);
+      log.warn("反序列化MetricsRtCustomPartitionsConf失败:%s,error message is:%s.",partitionFunction,e.getMessage());
       return super.newDriver(appenderator,toolbox,metrics,partitionIdTypeSet);
     }
-  }
-
-  public String updateKafkaTotalPartition(Set<Integer> partitionIdTypeSet,String partitionFunction) throws JsonProcessingException {
-    if(partitionIdTypeSet.size() ==  0 ){
-      return partitionFunction;
-    }
-
-    String partitionFunctionBase64 = (String) this.getIOConfig().getConsumerProperties().get("partitionFunction");
-    partitionFunction  =  new String(StringUtils.decodeBase64String(partitionFunctionBase64), StandardCharsets.UTF_8);
-
-    KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf conf = KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf.newMetricsRtCustomPartitionsConf(partitionFunction);
-    //分区描述信息太大，做裁剪
-    Set<String> removeKeys = new HashSet<>();
-    for(Map.Entry<String,Integer> e:conf.getPartitionMap().entrySet()){
-      if(!partitionIdTypeSet.contains(e.getValue())){
-        removeKeys.add(e.getKey());
-      }
-    }
-    for(String key:removeKeys){
-      conf.getPartitionMap().remove(key);
-    }
-    removeKeys.clear();
-
-    for(Map.Entry<String,Set<Integer>> e:conf.getDataSkewMap().entrySet()){
-      Set<Integer> s1 = new HashSet<Integer>(e.getValue());
-      Set<Integer> s2 = new HashSet<Integer>(partitionIdTypeSet);
-      s1.retainAll(s2);
-      if(s1.size() == 0){
-        removeKeys.add(e.getKey());
-      }
-    }
-    for(String key:removeKeys){
-      conf.getDataSkewMap().remove(key);
-    }
-    removeKeys.clear();
-    return JacksonUtils.JSON_MAPPER.writeValueAsString(conf);
   }
 }

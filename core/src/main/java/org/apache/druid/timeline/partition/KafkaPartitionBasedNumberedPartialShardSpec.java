@@ -1,15 +1,14 @@
 package org.apache.druid.timeline.partition;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.druid.java.util.common.logger.Logger;
 
 import javax.annotation.Nullable;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 public class KafkaPartitionBasedNumberedPartialShardSpec implements PartialShardSpec{
+    private static final Logger log = new Logger(KafkaPartitionBasedNumberedPartialShardSpec.class);
     public static final String TYPE = "kafka_partition";
     @Nullable
     private final List<String> partitionDimensions;
@@ -26,7 +25,7 @@ public class KafkaPartitionBasedNumberedPartialShardSpec implements PartialShard
             @JsonProperty("kafkaTotalPartition") int kafkaTotalPartition,
             @JsonProperty("partitionFunction") @Nullable String partitionFunction ,// nullable for backward compatibility
             @JsonProperty("fixedPartitionEnd") int fixedPartitionEnd
-    ){
+    ) {
         this.partitionDimensions = partitionDimensions;
         this.kafkaPartitionIds = kafkaPartitionIds;
         this.kafkaTotalPartition = kafkaTotalPartition;
@@ -68,16 +67,21 @@ public class KafkaPartitionBasedNumberedPartialShardSpec implements PartialShard
     @Override
     public ShardSpec complete(ObjectMapper objectMapper, int partitionId, int numCorePartitions)
     {
-        return new KafkaPartitionNumberedShardSpec(
-                partitionId,
-                numCorePartitions,
-                kafkaPartitionIds,
-                kafkaTotalPartition,
-                partitionDimensions,
-                partitionFunction,
-                fixedPartitionEnd,
-                objectMapper
-        );
+        try {
+            return new KafkaPartitionNumberedShardSpec(
+                    partitionId,
+                    numCorePartitions,
+                    kafkaPartitionIds,
+                    kafkaTotalPartition,
+                    partitionDimensions,
+                    partitionFunction,
+                    fixedPartitionEnd,
+                    objectMapper
+            );
+        }catch (Exception e){
+            log.warn("fail to create KafkaPartitionNumberedShardSpec,the error message is:%s",e.getMessage());
+            return new NumberedShardSpec(partitionId, numCorePartitions);
+        }
     }
 
     @Override

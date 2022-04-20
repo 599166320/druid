@@ -7,10 +7,7 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.RangeSet;
+import com.google.common.collect.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.Rows;
@@ -33,7 +30,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
     private final List<String> partitionDimensions;
     private  String partitionFunction;
     private final int fixedPartitionEnd;
-    private final ObjectMapper jsonMapper1;
+    private final ObjectMapper jsonMapper;
 
     @Nullable
     @JsonProperty
@@ -75,8 +72,7 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
             @JsonProperty("partitionFunction") @Nullable String partitionFunction, // nullable for backward compatibility
             @JsonProperty("fixedPartitionEnd") @Nullable Integer fixedPartitionEnd, // nullable for backward compatibility
             @JacksonInject ObjectMapper jsonMapper
-    )
-    {
+    ) throws JsonProcessingException {
         super(partitionNum, partitions);
         this.kafkaPartitionIds = kafkaPartitionIds;
         this.kafkaTotalPartition = kafkaTotalPartition;
@@ -85,17 +81,56 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         int p = 0;
         if(StringUtils.isNotBlank(partitionFunction) && partitionFunction.length()>=5){
             try {
+                this.partitionFunction = updateKafkaTotalPartition(kafkaPartitionIds,this.partitionFunction);
                 MetricsRtCustomPartitionsConf metricsRtCustomPartitionsConf = MetricsRtCustomPartitionsConf.newMetricsRtCustomPartitionsConf(partitionFunction);
                 p = metricsRtCustomPartitionsConf.getCustomPartitionNum();
             }catch (Exception e){
-                log.warn("MetricsRtCustomPartitionsConf解析异常:"+partitionFunction);
+                log.warn("fail to parse MetricsRtCustomPartitionsConf:"+partitionFunction);
             }
         }
         //必须最后设置
         this.fixedPartitionEnd = p;
-        this.jsonMapper1 = jsonMapper;
+        this.jsonMapper = jsonMapper;
     }
+    public String updateKafkaTotalPartition(Set<Integer> partitionIdTypeSet,String partitionFunction) throws JsonProcessingException {
+        if(partitionIdTypeSet.size() ==  0 ){
+            return partitionFunction;
+        }
+        KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf conf;
+        try {
+            conf = KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf.newMetricsRtCustomPartitionsConf(partitionFunction);
+        }catch (JsonProcessingException e){
+            throw e;
+        }
+        //分区描述信息太大，做裁剪
+        Set<String> removeKeys = new HashSet<>();
+        for(Map.Entry<String,Integer> e:conf.getPartitionMap().entrySet()){
+            if(!partitionIdTypeSet.contains(e.getValue())){
+                removeKeys.add(e.getKey());
+            }
+        }
+        for(String key:removeKeys){
+            conf.getPartitionMap().remove(key);
+        }
+        removeKeys.clear();
 
+        for(Map.Entry<String,Set<Integer>> e:conf.getDataSkewMap().entrySet()){
+            Set<Integer> s1 = new HashSet<Integer>(e.getValue());
+            Set<Integer> s2 = new HashSet<Integer>(partitionIdTypeSet);
+            s1.retainAll(s2);
+            if(s1.size() == 0){
+                removeKeys.add(e.getKey());
+            }
+        }
+        for(String key:removeKeys){
+            conf.getDataSkewMap().remove(key);
+        }
+        removeKeys.clear();
+        if(Objects.isNull(conf.getRandomWriteList())){
+            conf.setRandomWriteList(new HashSet<>());
+        }
+        return JacksonUtils.JSON_MAPPER.writeValueAsString(conf);
+    }
     private boolean notKafkaPartitionNumberShardSpec(){
         return Objects.isNull(kafkaPartitionIds) || kafkaTotalPartition <= 0 || Objects.isNull(partitionDimensions) || StringUtils.isEmpty(partitionFunction) || partitionFunction.length()<5;
     }
@@ -400,7 +435,8 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
 
     public static void main(String[] args) throws JsonProcessingException {
         ObjectMapper configMapper = JacksonUtils.JSON_MAPPER;
-        String partitionFunction = "{\"partitionMap\":{\"d03c58e83118992a6ea09fbf760a4a97\":4,\"f55da3de808dc0ccbd7805f58b549c37\":2,\"dcf4f2f1e9354dfa05c2e3c29582e452\":4,\"44117f941760aad8e89968706035bd4c\":3,\"1bbf0542e07c2a7e2d7094dd5643ed19\":1,\"4f0f8d42f869a7f5b1d49a5da253823d\":3,\"3044423f50507b5f2aec45b9e4ce606e\":3,\"edb9f84cbcb7ba0209f2bb04add22918\":4,\"ead3523187aefb72a481249b9a2add22\":4,\"945ddfcc12d1d1ea9a0e0f80d16b60a2\":3,\"0f64a88f7912246b878d1f2e5b4b5bfd\":4,\"972fe94bf5080347f0db88d3aa8df7dc\":2,\"61a769bbc91bfb8eae2254ce6ffe46cb\":2},\"dataSkewMap\":{\"mybatis_latency_bucket,qa\":[0]},\"partitionDimensions\":\"name,env\",\"partitionNum\":12,\"customPartitionNum\":5,\"randomWriteList\":[]}";
+        //String partitionFunction = "{\"partitionMap\":{\"d03c58e83118992a6ea09fbf760a4a97\":4,\"f55da3de808dc0ccbd7805f58b549c37\":2,\"dcf4f2f1e9354dfa05c2e3c29582e452\":4,\"44117f941760aad8e89968706035bd4c\":3,\"1bbf0542e07c2a7e2d7094dd5643ed19\":1,\"4f0f8d42f869a7f5b1d49a5da253823d\":3,\"3044423f50507b5f2aec45b9e4ce606e\":3,\"edb9f84cbcb7ba0209f2bb04add22918\":4,\"ead3523187aefb72a481249b9a2add22\":4,\"945ddfcc12d1d1ea9a0e0f80d16b60a2\":3,\"0f64a88f7912246b878d1f2e5b4b5bfd\":4,\"972fe94bf5080347f0db88d3aa8df7dc\":2,\"61a769bbc91bfb8eae2254ce6ffe46cb\":2},\"dataSkewMap\":{\"mybatis_latency_bucket,qa\":[0]},\"partitionDimensions\":\"name,env\",\"partitionNum\":12,\"customPartitionNum\":5,\"randomWriteList\":[]}";
+        String partitionFunction = "{\"partitionMap\":{\"d03c58e83118992a6ea09fbf760a4a97\":4,\"f55da3de808dc0ccbd7805f58b549c37\":2,\"dcf4f2f1e9354dfa05c2e3c29582e452\":4,\"44117f941760aad8e89968706035bd4c\":3,\"1bbf0542e07c2a7e2d7094dd5643ed19\":1,\"4f0f8d42f869a7f5b1d49a5da253823d\":3,\"3044423f50507b5f2aec45b9e4ce606e\":3,\"edb9f84cbcb7ba0209f2bb04add22918\":4,\"ead3523187aefb72a481249b9a2add22\":4,\"945ddfcc12d1d1ea9a0e0f80d16b60a2\":3,\"0f64a88f7912246b878d1f2e5b4b5bfd\":4,\"972fe94bf5080347f0db88d3aa8df7dc\":2,\"61a769bbc91bfb8eae2254ce6ffe46cb\":2},\"dataSkewMap\":{\"mybatis_latency_bucket,qa\":[0]},\"partitionDimensions\":\"name,env\",\"partitionNum\":12,\"customPartitionNum\":5}";
         KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf conf = configMapper.copy().configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true).readValue(partitionFunction,KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf.class);
         System.out.println(conf);
         System.out.println(configMapper.writeValueAsString(conf));
