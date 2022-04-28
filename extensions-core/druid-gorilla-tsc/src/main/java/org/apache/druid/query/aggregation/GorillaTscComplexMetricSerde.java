@@ -72,7 +72,7 @@ public class GorillaTscComplexMetricSerde extends ComplexMetricSerde
           }
           Object[][] datas = new Object[dimValues.size()][2];
           for(int i=0;i<datas.length;i++){
-            datas[i][0] = inputRow.getTimestampFromEpoch();
+            datas[i][0] = inputRow.getTimestampFromEpoch()/1000;
             datas[i][1] = Double.valueOf(dimValues.get(i));
           }
           return datas;

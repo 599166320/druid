@@ -95,7 +95,7 @@ public class GorillaTscAggregatorTest extends InitializedNullHandlingTest
             "  \"type\": \"string\",",
             "  \"parseSpec\": {",
             "    \"format\": \"tsv\",",
-            "    \"timestampSpec\": {\"column\": \"timestamp\", \"format\": \"yyyyMMddHH\"},",
+            "    \"timestampSpec\": {\"column\": \"timestamp\", \"format\": \"yyyyMMddHHmmss\"},",
             "    \"dimensionsSpec\": {",
             "      \"dimensions\": [\"product\"],",
             "      \"dimensionExclusions\": [ \"sequenceNumber\"],",
@@ -106,9 +106,9 @@ public class GorillaTscAggregatorTest extends InitializedNullHandlingTest
             "}"
         ),
        "[{\"type\": \"gorilla\", \"name\": \"value\", \"fieldName\": \"value\", \"maxIntermediateSize\": -1}]",
-         //   "[]",
+         //   "[]",,k,
         0, // minTimestamp
-        Granularities.ALL,
+        Granularities.HOUR,
         10000, // maxRowCount
 
             String.join(
@@ -116,7 +116,7 @@ public class GorillaTscAggregatorTest extends InitializedNullHandlingTest
             "{",
             "  \"queryType\": \"groupBy\",",
             "  \"dataSource\": \"test_datasource\",",
-            "  \"granularity\": \"ALL\",",
+            "  \"granularity\": \"HOUR\",",
             "  \"dimensions\": [\"product\"],",
             "  \"aggregations\": [",
              //       "{\"type\": \"gorilla\", \"name\": \"value\", \"fieldName\": \"value\"}"+
@@ -133,8 +133,17 @@ public class GorillaTscAggregatorTest extends InitializedNullHandlingTest
 
 
     ResultRow row = results.get(0);
-    TSG tmp = (TSG) row.get(1);
+    TSG tmp = (TSG) row.get(2);
     TSGIterator it = tmp.toIterator();
+    while(it.hasNext()){
+      DataPoint p =  it.next();
+      System.out.println(p.getTime()+","+p.getValue());
+    }
+
+
+    row = results.get(1);
+    tmp = (TSG) row.get(2);
+    it = tmp.toIterator();
     while(it.hasNext()){
       DataPoint p =  it.next();
       System.out.println(p.getTime()+","+p.getValue());

@@ -43,7 +43,7 @@ public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSe
                 Object[][] timeAndValues = (Object[][]) obj;
                 if(timeAndValues.length > 0 && timeAndValues[0].length> 0){
                     long ts = (long) (timeAndValues)[0][0];
-                    tsg = new TSG(ts-ts%(3600_000));
+                    tsg = new TSG(ts-ts%(3600));
                 }else{
                     return;
                 }
@@ -61,10 +61,15 @@ public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSe
                 tsg.put((Long) timeAndValue[0], (Double) timeAndValue[1]);
             }
         }else if(obj instanceof TSG){
+            //查询的时候做合并，就会执行一下代码
             TSG other = (TSG) obj;
             Iterator<DataPoint> tsgIterator =other.toIterator();
             while(tsgIterator.hasNext()){
-                tsg.put(tsgIterator.next());
+                try {
+                    tsg.put(tsgIterator.next());
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
             }
         }else if(obj instanceof DataPoint){
             tsg.put((DataPoint)obj);
