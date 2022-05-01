@@ -1,15 +1,19 @@
 package org.apache.druid.query.aggregation;
 import org.apache.druid.query.core.TSG;
-
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 public abstract class BaseGorillaTscAggregator <TSelector>
         implements  Aggregator,BufferAggregator{
     protected final TSelector selector;
     protected TSG tsg;
-    public BaseGorillaTscAggregator(TSelector selector){
+    private final int maxNumEntries;
+    private boolean onHeap;
+    public BaseGorillaTscAggregator(TSelector selector,int maxNumEntries, boolean onHeap){
         this.selector = selector;
+        this.maxNumEntries = maxNumEntries;
+        this.onHeap = onHeap;
     }
+
     @Override
     public float getFloat() {
         throw new UnsupportedOperationException("BaseGorillaTscAggregator does not support getFloat()");
@@ -20,28 +24,27 @@ public abstract class BaseGorillaTscAggregator <TSelector>
         throw new UnsupportedOperationException("BaseGorillaTscAggregator does not support getLong()");
     }
 
-
-
     @Override
     public void init(ByteBuffer buf, int position) {
-        System.out.println(buf);
     }
 
     @Override
     public void aggregate(ByteBuffer buf, int position) {
-        final int oldPosition = buf.position();
-        try {
-            buf.position(position);
-            bufferAdd(buf);
-        }
-        finally {
-            buf.position(oldPosition);
-        }
+    }
+
+    @Override
+    public void aggregate() {
     }
 
     @Nullable
     @Override
     public Object get(ByteBuffer buf, int position) {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public Object get() {
         return null;
     }
 
@@ -54,6 +57,4 @@ public abstract class BaseGorillaTscAggregator <TSelector>
     public long getLong(ByteBuffer buf, int position) {
         return 0;
     }
-
-    abstract void bufferAdd(ByteBuffer buf);
 }

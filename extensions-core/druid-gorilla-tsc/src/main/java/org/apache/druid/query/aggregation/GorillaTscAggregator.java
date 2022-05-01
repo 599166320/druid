@@ -1,36 +1,12 @@
 package org.apache.druid.query.aggregation;
-import com.google.errorprone.annotations.concurrent.GuardedBy;
 import org.apache.druid.query.core.DataPoint;
-import org.apache.druid.query.core.InBitSet;
 import org.apache.druid.query.core.TSG;
-import org.apache.druid.query.core.TSGIterator;
 import org.apache.druid.segment.ColumnValueSelector;
 import javax.annotation.Nullable;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.BitSet;
-import java.util.Iterator;
-
 public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSelector>{
 
-    public GorillaTscAggregator(ColumnValueSelector dimensionSelector) {
-        super(dimensionSelector);
-    }
-
-    @Override
-    public void init(ByteBuffer buf, int position) {
-        //buf和bufferAdd对应，保存的是中间结果
-    }
-
-    @Override
-    void bufferAdd(ByteBuffer buf) {
-        //buf和init对应，保存的是中间结果,目前中间件结果不使用buf来保存
-        aggregate();
-    }
-    @Nullable
-    @Override
-    public Object get(ByteBuffer buf, int position) {
-        return tsg;
+    public GorillaTscAggregator(ColumnValueSelector dimensionSelector,int maxNumEntries, boolean onHeap) {
+        super(dimensionSelector,maxNumEntries,onHeap);
     }
     /**
      * 新数据加入的时候会调用
@@ -61,16 +37,9 @@ public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSe
                 tsg.put((Long) timeAndValue[0], (Double) timeAndValue[1]);
             }
         }else if(obj instanceof TSG){
-            //查询的时候做合并，就会执行一下代码
+            //查询的时候做合并，就会执行一下代码,都是大块的合并
             TSG other = (TSG) obj;
-            Iterator<DataPoint> tsgIterator =other.toIterator();
-            while(tsgIterator.hasNext()){
-                try {
-                    tsg.put(tsgIterator.next());
-                }catch (Exception e){
-                    e.printStackTrace();
-                }
-            }
+            tsg = TSG.merge(tsg,other);//sum,avg,等其他函数
         }else if(obj instanceof DataPoint){
             tsg.put((DataPoint)obj);
         }
@@ -84,12 +53,10 @@ public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSe
 
     @Override
     public void close() {
+        /*
         if(tsg != null && !tsg.isClosed()){
             tsg.close();
-        }
+        }*/
+        tsg = null;
     }
-
-
-
-
 }

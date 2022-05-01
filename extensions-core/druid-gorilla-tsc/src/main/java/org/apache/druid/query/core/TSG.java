@@ -89,7 +89,10 @@ public class TSG
         TSG lhs = TSG.fromBytes(lhsBytes);
         TSG rhs = TSG.fromBytes(rhsBytes);
 
+        return merge(lhs,rhs).toBytes();
+    }
 
+    public static TSG merge(TSG lhs, TSG rhs) {
         TreeMap<Long,Double> treeMap = new TreeMap<>();
         Iterator<DataPoint> tsgIterator = lhs.toIterator();
         while(tsgIterator.hasNext()){
@@ -101,12 +104,13 @@ public class TSG
             DataPoint dataPoint = tsgIterator.next();
             treeMap.put(dataPoint.getTime(),dataPoint.getValue());
         }
-        TSG tsg = new TSG(lhs.startTime);
+        TSG tsg = new TSG(treeMap.firstKey());
         for(Map.Entry<Long,Double> e:treeMap.entrySet()){
             tsg.put(e.getKey(),e.getValue());
         }
-        return tsg.toBytes();
+        return tsg;
     }
+
 
     /**
      * Close current TSG block.

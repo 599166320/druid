@@ -44,6 +44,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.TreeMap;
 
 @RunWith(Parameterized.class)
 public class GorillaTscAggregatorTest extends InitializedNullHandlingTest
@@ -97,8 +98,8 @@ public class GorillaTscAggregatorTest extends InitializedNullHandlingTest
             "    \"format\": \"tsv\",",
             "    \"timestampSpec\": {\"column\": \"timestamp\", \"format\": \"yyyyMMddHHmmss\"},",
             "    \"dimensionsSpec\": {",
-            "      \"dimensions\": [\"product\"],",
-            "      \"dimensionExclusions\": [ \"sequenceNumber\"],",
+            "      \"dimensions\": [\"sequenceNumber\",\"product\"],",
+            "      \"dimensionExclusions\": [ ],",
             "      \"spatialDimensions\": []",
             "    },",
             "    \"columns\": [\"timestamp\", \"sequenceNumber\", \"product\", \"value\"]",
@@ -117,7 +118,7 @@ public class GorillaTscAggregatorTest extends InitializedNullHandlingTest
             "  \"queryType\": \"groupBy\",",
             "  \"dataSource\": \"test_datasource\",",
             "  \"granularity\": \"HOUR\",",
-            "  \"dimensions\": [\"product\"],",
+            "  \"dimensions\": [\"sequenceNumber\",\"product\"],",
             "  \"aggregations\": [",
              //       "{\"type\": \"gorilla\", \"name\": \"value\", \"fieldName\": \"value\"}"+
             "{\"type\": \"gorilla\", \"name\": \"value\", \"fieldName\": \"value\"}, "+

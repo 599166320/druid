@@ -1,0 +1,97 @@
+package org.apache.druid.query.aggregation;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import org.apache.druid.query.core.DataPoint;
+import org.apache.druid.query.core.TSG;
+import org.apache.druid.segment.ColumnValueSelector;
+import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+
+public class GorillaTsgBufferAggregator extends  BaseGorillaTscAggregator<ColumnValueSelector>{
+
+    private final IdentityHashMap<ByteBuffer, Int2ObjectMap<TSG>> tsgCache = new IdentityHashMap();
+
+    public GorillaTsgBufferAggregator(ColumnValueSelector columnValueSelector, int maxNumEntries, boolean onHeap) {
+        super(columnValueSelector,maxNumEntries,onHeap);
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position) {
+        Int2ObjectMap<TSG> int2ObjectMap = tsgCache.get(buf);
+        TSG tsg = null;
+        if(int2ObjectMap != null){
+            tsg = int2ObjectMap.get(position);
+        }
+        Object obj = selector.getObject();
+        if(tsg == null && obj != null){
+            if(obj instanceof Object[][]){
+                Object[][] timeAndValues = (Object[][]) obj;
+                if(timeAndValues.length > 0 && timeAndValues[0].length> 0){
+                    long ts = (long) (timeAndValues)[0][0];
+                    tsg = new TSG(ts-ts%(3600));
+                    addToCache(buf,position,tsg);
+                }else{
+                    return;
+                }
+            }else if(obj instanceof  TSG){
+                tsg = (TSG) obj;
+                addToCache(buf,position,tsg);
+                return;
+            }
+        }
+
+        if (obj == null) {
+            return;
+        }else if(obj instanceof Object[][]){
+            Object[][] timeAndValues = (Object[][]) obj;
+            for (Object[] timeAndValue : timeAndValues) {
+                tsg.put((Long) timeAndValue[0], (Double) timeAndValue[1]);
+            }
+        }else if(obj instanceof TSG){
+            //查询的时候做合并，就会执行一下代码,这里都是大块的合并
+            TSG other = (TSG) obj;
+            tsg = TSG.merge(tsg,other);//sum,avg,等其他函数
+            addToCache(buf,position,tsg);
+        }else if(obj instanceof DataPoint){
+            tsg.put((DataPoint)obj);
+        }
+    }
+
+
+    @Nullable
+    @Override
+    public Object get(ByteBuffer buf, int position) {
+        Object tmp = tsgCache.get(buf).get(position);;
+        return tmp;
+    }
+
+    @Override
+    public Object get() {
+        Object tmp = selector.getObject();
+        return tmp;
+    }
+
+    @Override
+    public void close() {
+        tsgCache.clear();
+    }
+
+    @Override
+    public void relocate(int oldPosition, int newPosition, ByteBuffer oldBuffer, ByteBuffer newBuffer) {
+        TSG tsg = tsgCache.get(oldBuffer).get(oldPosition);
+        addToCache(newBuffer, newPosition, tsg);
+        final Int2ObjectMap<TSG> map = tsgCache.get(oldBuffer);
+        map.remove(oldPosition);
+        if (map.isEmpty()) {
+            tsgCache.remove(oldBuffer);
+        }
+    }
+
+    private void addToCache(final ByteBuffer buffer, final int position, final TSG tsg)
+    {
+        Int2ObjectMap<TSG> map = tsgCache.computeIfAbsent(buffer, b -> new Int2ObjectOpenHashMap<>());
+        map.put(position, tsg);
+    }
+}

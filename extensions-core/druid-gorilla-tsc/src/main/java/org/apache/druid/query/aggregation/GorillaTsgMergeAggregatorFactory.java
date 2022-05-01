@@ -4,11 +4,9 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.BaseNullableColumnValueSelector;
 import org.apache.druid.segment.ColumnSelectorFactory;
-import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.NilColumnValueSelector;
-import org.apache.druid.segment.column.ColumnCapabilities;
-import org.apache.druid.segment.column.ValueType;
 import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
 
 public class GorillaTsgMergeAggregatorFactory extends GorillaTscAggregatorFactory{
     private final String fieldName;
@@ -20,7 +18,12 @@ public class GorillaTsgMergeAggregatorFactory extends GorillaTscAggregatorFactor
     @Override
     public Aggregator factorize(final ColumnSelectorFactory metricFactory)
     {
-        return makeMergeAggregator(metricFactory);
+        return makeMergeAggregator(metricFactory,true);
+    }
+
+    @Override
+    public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory) {
+        return makeMergeAggregator(metricFactory,false);
     }
 
     @Override
@@ -31,29 +34,12 @@ public class GorillaTsgMergeAggregatorFactory extends GorillaTscAggregatorFactor
                 .build();
     }
 
-    private GorillaTsgMergeAggregator makeMergeAggregator(ColumnSelectorFactory columnFactory)
+    private BaseGorillaTscAggregator makeMergeAggregator(ColumnSelectorFactory columnFactory,boolean onHeap)
     {
         final BaseNullableColumnValueSelector selector = columnFactory.makeColumnValueSelector(fieldName);
-        // null columns should be empty bloom filters by this point, so encountering a nil column in merge agg is unexpected
         if (selector instanceof NilColumnValueSelector) {
             throw new ISE("Unexpected NilColumnValueSelector");
         }
-        ColumnCapabilities capabilities = columnFactory.getColumnCapabilities(fieldName);
-        if (capabilities != null) {
-            ValueType type = capabilities.getType();
-            switch (type) {
-                case COMPLEX:
-                    return new GorillaTsgMergeAggregator(
-                            columnFactory.makeColumnValueSelector(fieldName)
-                    );
-                default:
-                    throw new IAE(
-                            "Cannot create bloom filter %s for invalid column type [%s]",
-                            false ? "aggregator" : "buffer aggregator",
-                            type
-                    );
-            }
-        }
-        return null;
+        return super.getBaseGorillaTscAggregator(columnFactory,onHeap);
     }
 }

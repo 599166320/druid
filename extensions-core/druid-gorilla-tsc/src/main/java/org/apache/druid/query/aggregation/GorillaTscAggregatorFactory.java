@@ -53,7 +53,7 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
      */
     @Override
     public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory) {
-        return factorizeInternal(metricFactory,true);
+        return factorizeInternal(metricFactory,false);
     }
 
     private BaseGorillaTscAggregator factorizeInternal(ColumnSelectorFactory columnFactory, boolean onHeap) {
@@ -62,9 +62,7 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
             ValueType type = capabilities.getType();
             switch (type) {
                 case COMPLEX:
-                    return new GorillaTscAggregator(
-                             columnFactory.makeColumnValueSelector(fieldName)
-                    );
+                    return getBaseGorillaTscAggregator(columnFactory,onHeap);
                 default:
                     throw new IAE(
                             "Cannot create bloom filter %s for invalid column type [%s]",
@@ -73,9 +71,18 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
                     );
             }
         }
-        //根据不通的数据类型选择不通的聚合器
-        return new GorillaTscAggregator(
-                columnFactory.makeColumnValueSelector(fieldName)
+        return getBaseGorillaTscAggregator(columnFactory,onHeap);
+    }
+
+    protected BaseGorillaTscAggregator getBaseGorillaTscAggregator(ColumnSelectorFactory columnFactory,boolean onHeap){
+        return onHeap?new GorillaTscAggregator(
+                columnFactory.makeColumnValueSelector(fieldName),
+                maxIntermediateSize,
+                onHeap
+        ):new GorillaTsgBufferAggregator(
+                columnFactory.makeColumnValueSelector(fieldName),
+                maxIntermediateSize,
+                onHeap
         );
     }
 
@@ -106,7 +113,7 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
 
     @Override
     public AggregatorFactory getCombiningFactory() {
-        return this;
+        return new GorillaTsgMergeAggregatorFactory(name,name,maxIntermediateSize);
     }
 
     @Override
