@@ -23,8 +23,8 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
     @Nonnull
     private final String name;
     protected final int maxIntermediateSize;
-    private  final int DEFAULT_NUM_ENTRIES = 3600/10;//最细5s一个点
-    protected  final int  DEFAULT_MAX_INTERMEDIATE_SIZE = Long.BYTES*2+Double.BYTES+Integer.BYTES+1+Long.BYTES*DEFAULT_NUM_ENTRIES+Double.BYTES*DEFAULT_NUM_ENTRIES;
+    private  static final int DEFAULT_NUM_ENTRIES = 3600/10;//最细5s一个点
+    public  static final int  DEFAULT_MAX_INTERMEDIATE_SIZE = Long.BYTES*2+Double.BYTES+Integer.BYTES+1+Long.BYTES*DEFAULT_NUM_ENTRIES+Double.BYTES*DEFAULT_NUM_ENTRIES;
     public static final String TYPE_NAME = "gorilla";
     @JsonCreator
     public GorillaTscAggregatorFactory(

@@ -23,12 +23,10 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.druid.query.aggregation.GorillaTscAggregatorFactory;
-import org.apache.druid.query.aggregation.GorillaTscComplexMetricSerde;
-import org.apache.druid.query.aggregation.GorillaTscJsonSerializer;
-import org.apache.druid.query.aggregation.TSGTscJsonDeserializer;
+import org.apache.druid.query.aggregation.*;
 import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.serde.ComplexMetrics;
+import org.apache.druid.sql.guice.SqlBindings;
 
 import java.io.IOException;
 
@@ -39,7 +37,8 @@ public class GorillaTscSerializersModule extends SimpleModule
     public GorillaTscSerializersModule()
     {
         registerSubtypes(
-                new NamedType(GorillaTscAggregatorFactory.class, GorillaTscAggregatorFactory.TYPE_NAME)
+                new NamedType(GorillaTscAggregatorFactory.class, GorillaTscAggregatorFactory.TYPE_NAME),
+                new NamedType(GorillaTscPostAggregator.class, GorillaTscPostAggregator.TYPE_NAME)
         );
         addSerializer(TSG.class, new GorillaTscJsonSerializer());
         addDeserializer(TSG.class, new TSGTscJsonDeserializer());

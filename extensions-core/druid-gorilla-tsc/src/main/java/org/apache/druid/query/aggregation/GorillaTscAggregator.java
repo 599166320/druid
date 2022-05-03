@@ -1,8 +1,10 @@
 package org.apache.druid.query.aggregation;
 import org.apache.druid.query.core.DataPoint;
 import org.apache.druid.query.core.TSG;
+
 import org.apache.druid.segment.ColumnValueSelector;
 import javax.annotation.Nullable;
+
 public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSelector>{
 
     public GorillaTscAggregator(ColumnValueSelector dimensionSelector,int maxNumEntries, boolean onHeap) {
@@ -26,16 +28,16 @@ public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSe
             }else if(obj instanceof  TSG){
                 tsg = (TSG) obj;
                 return;
+            }else if(obj instanceof byte[]){
+                tsg = TSG.fromBytes((byte[])obj);
+                return;
             }
         }
 
         if (obj == null) {
             return;
         }else if(obj instanceof Object[][]){
-            Object[][] timeAndValues = (Object[][]) obj;
-            for (Object[] timeAndValue : timeAndValues) {
-                tsg.put((Long) timeAndValue[0], (Double) timeAndValue[1]);
-            }
+            tsg = addNewPoint((Object[][]) obj,tsg);
         }else if(obj instanceof TSG){
             //查询的时候做合并，就会执行一下代码,都是大块的合并
             TSG other = (TSG) obj;
@@ -44,6 +46,7 @@ public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSe
             tsg.put((DataPoint)obj);
         }
     }
+
 
     @Nullable
     @Override

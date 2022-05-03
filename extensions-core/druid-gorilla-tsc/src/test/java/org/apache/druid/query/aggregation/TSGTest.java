@@ -1,5 +1,6 @@
 package org.apache.druid.query.aggregation;
 
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.core.*;
 import org.junit.Test;
 
@@ -9,6 +10,21 @@ public class TSGTest {
 
     @Test
     public void test(){
+
+        //TSG tmp = new TSG(100);
+        //tmp.put(100,1.2);
+        TSG tmp = TSG.fromBytes(StringUtils.decodeBase64String("AAAAAGJl5awAAAAAYmXlrECQOAAAAAAAAAAAAAAAAAAAAAAAAAAAjqzlZWIAAAAAAAAAAAAAAA4kEA=="));
+        /*long a = tmp.getStartTime();
+        long b = tmp.getTime();
+        System.out.println(a+","+b);
+        System.out.println(tmp.getOutBitSet().getSize());*/
+        Iterator<DataPoint> tsgIterator1 = tmp.toIterator();
+        while (tsgIterator1.hasNext()){
+            DataPoint p = tsgIterator1.next();
+            System.out.println(p.getTime()+","+p.getValue());
+        }
+
+
         TSG tsg = new TSG(1650844800, new OutBitSet());
         tsg.put(1650844800,1000.0);
         tsg.put(1650844860,1001.0);

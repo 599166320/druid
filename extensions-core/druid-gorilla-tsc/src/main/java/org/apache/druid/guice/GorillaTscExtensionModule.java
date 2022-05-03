@@ -23,7 +23,11 @@ import com.fasterxml.jackson.databind.Module;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.query.aggregation.expression.GorillaTimeSeriesExprMacro;
+import org.apache.druid.query.aggregation.expression.GorillaTimeSeriesOperatorConversion;
+import org.apache.druid.query.aggregation.sql.GorillaTscSqlAggregator;
 import org.apache.druid.segment.serde.ComplexMetrics;
+import org.apache.druid.sql.guice.SqlBindings;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,5 +42,8 @@ public class GorillaTscExtensionModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
+    SqlBindings.addAggregator(binder, GorillaTscSqlAggregator.class);
+    SqlBindings.addOperatorConversion(binder, GorillaTimeSeriesOperatorConversion.class);
+    ExpressionModule.addExprMacro(binder, GorillaTimeSeriesExprMacro.class);
   }
 }

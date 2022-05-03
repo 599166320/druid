@@ -21,6 +21,7 @@ package org.apache.druid.emitter.prometheus;
 
 
 import com.google.common.collect.ImmutableMap;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
@@ -33,6 +34,9 @@ import org.apache.druid.java.util.emitter.service.ServiceMetricEvent;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -49,7 +53,7 @@ public class PrometheusEmitter implements Emitter
   private HTTPServer server;
   private PushGateway pushGateway;
   private String identifier;
-
+  private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
   static PrometheusEmitter of(PrometheusEmitterConfig config)
   {
     return new PrometheusEmitter(config);
@@ -79,8 +83,16 @@ public class PrometheusEmitter implements Emitter
       }
     } else if (strategy.equals(PrometheusEmitterConfig.Strategy.pushgateway)) {
       pushGateway = new PushGateway(config.getPushGatewayAddress());
+      Thread thread = new Thread(){
+        @Override
+        public void run() {
+          flush();
+        }
+      };
+      thread.setName("pushGatewayThread");
+      thread.setDaemon(true);
+      executor.scheduleAtFixedRate(thread,60,60, TimeUnit.SECONDS);
     }
-
   }
 
   @Override
@@ -126,13 +138,8 @@ public class PrometheusEmitter implements Emitter
 
   private void pushMetric()
   {
-    Map<String, DimensionsAndCollector> map = metrics.getRegisteredMetrics();
     try {
-      for (DimensionsAndCollector collector : map.values()) {
-        if (config.getNamespace() != null) {
-          pushGateway.push(collector.getCollector(), config.getNamespace(), ImmutableMap.of(config.getNamespace(), identifier));
-        }
-      }
+      pushGateway.push(CollectorRegistry.defaultRegistry, config.getNamespace(), ImmutableMap.of(config.getNamespace(), identifier));
     }
     catch (IOException e) {
       log.error(e, "Unable to push prometheus metrics to pushGateway");

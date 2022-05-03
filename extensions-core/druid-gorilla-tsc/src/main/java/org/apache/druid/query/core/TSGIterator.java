@@ -73,6 +73,7 @@ public class TSGIterator implements Iterator<DataPoint>
         int deltaDelta = 0;
         int deltaBits = 0;
         if (deltaSize == 0x00) {
+
         } else if (deltaSize == 0x02) {
             deltaBits = 7;
         } else if (deltaSize == 0x06) {

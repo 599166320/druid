@@ -7,8 +7,6 @@ import org.apache.druid.segment.ColumnValueSelector;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
-
 public class GorillaTsgBufferAggregator extends  BaseGorillaTscAggregator<ColumnValueSelector>{
 
     private final IdentityHashMap<ByteBuffer, Int2ObjectMap<TSG>> tsgCache = new IdentityHashMap();
@@ -39,24 +37,24 @@ public class GorillaTsgBufferAggregator extends  BaseGorillaTscAggregator<Column
                 tsg = (TSG) obj;
                 addToCache(buf,position,tsg);
                 return;
+            }else if(obj instanceof byte[]){
+                tsg = TSG.fromBytes((byte[])obj);
+                addToCache(buf,position,tsg);
+                return;
             }
         }
-
         if (obj == null) {
             return;
         }else if(obj instanceof Object[][]){
-            Object[][] timeAndValues = (Object[][]) obj;
-            for (Object[] timeAndValue : timeAndValues) {
-                tsg.put((Long) timeAndValue[0], (Double) timeAndValue[1]);
-            }
+            tsg = addNewPoint((Object[][]) obj,tsg);
         }else if(obj instanceof TSG){
             //查询的时候做合并，就会执行一下代码,这里都是大块的合并
             TSG other = (TSG) obj;
             tsg = TSG.merge(tsg,other);//sum,avg,等其他函数
-            addToCache(buf,position,tsg);
         }else if(obj instanceof DataPoint){
             tsg.put((DataPoint)obj);
         }
+        addToCache(buf,position,tsg);
     }
 
 

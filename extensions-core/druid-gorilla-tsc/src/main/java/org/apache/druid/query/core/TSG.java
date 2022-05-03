@@ -92,6 +92,12 @@ public class TSG
         return merge(lhs,rhs).toBytes();
     }
 
+    /**
+     * 相同tag的时间序列合并
+     * @param lhs
+     * @param rhs
+     * @return
+     */
     public static TSG merge(TSG lhs, TSG rhs) {
         TreeMap<Long,Double> treeMap = new TreeMap<>();
         Iterator<DataPoint> tsgIterator = lhs.toIterator();
@@ -304,5 +310,16 @@ public class TSG
 
     public long getStartTime() {
         return startTime;
+    }
+
+    public long getTime(){
+        return time;
+    }
+
+    public static int compare(TSG a, TSG b) {
+        return Long.compare(a.startTime, b.startTime);
+    }
+    public OutBit getOutBitSet(){
+        return outBit;
     }
 }
