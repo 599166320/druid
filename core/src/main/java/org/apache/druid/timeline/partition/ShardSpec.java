@@ -26,6 +26,7 @@ import com.google.common.collect.RangeSet;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A Marker interface that exists to combine ShardSpec objects together for Jackson. Note that this is not an
@@ -132,4 +133,9 @@ public interface ShardSpec
   {
     return !partialShardSpec.useNonRootGenerationPartitionSpace();
   }
+
+  default boolean forcePartition(Set<String> partitionIds){
+    return false;
+  }
+
 }

@@ -324,6 +324,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
             null,
             null,
             null,
+            null,
             null
     );
 
@@ -467,7 +468,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             null,
             null,
             null,
-            null
+            null,
+                null
         ),
         null
     ).get(0).getContext();
@@ -3291,7 +3293,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             null,
             null,
             null,
-            null
+            null,
+                null
         )
     );
 
@@ -3331,7 +3334,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
         null,
         null,
         null,
-        null
+        null,
+            null
     );
 
     KafkaIndexTask taskFromStorage = createKafkaIndexTask(
@@ -3628,7 +3632,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
         null,
         null,
         null,
-        null
+        null,
+            null
     );
 
     return new TestableKafkaSupervisor(
@@ -3740,7 +3745,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
         null,
         null,
         null,
-        null
+        null,
+            null
     );
 
     return new TestableKafkaSupervisorWithCustomIsTaskCurrent(

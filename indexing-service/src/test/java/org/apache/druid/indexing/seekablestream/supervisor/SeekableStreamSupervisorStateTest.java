@@ -1012,7 +1012,8 @@ public class SeekableStreamSupervisorStateTest extends EasyMockSupport
             null,
             null,
             null,
-            null
+            null,
+                null
         )
         {
           @Override

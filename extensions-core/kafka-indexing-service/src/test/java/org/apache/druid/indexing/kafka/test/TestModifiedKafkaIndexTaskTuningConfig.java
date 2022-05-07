@@ -22,6 +22,7 @@ package org.apache.druid.indexing.kafka.test;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.kafka.KafkaIndexTaskTuningConfig;
 import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.incremental.AppendableIndexSpec;
@@ -30,6 +31,7 @@ import org.joda.time.Period;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.util.Properties;
 
 @JsonTypeName("KafkaTuningConfig")
 public class TestModifiedKafkaIndexTaskTuningConfig extends KafkaIndexTaskTuningConfig
@@ -57,7 +59,8 @@ public class TestModifiedKafkaIndexTaskTuningConfig extends KafkaIndexTaskTuning
       @JsonProperty("logParseExceptions") @Nullable Boolean logParseExceptions,
       @JsonProperty("maxParseExceptions") @Nullable Integer maxParseExceptions,
       @JsonProperty("maxSavedParseExceptions") @Nullable Integer maxSavedParseExceptions,
-      @JsonProperty("extra") String extra
+      @JsonProperty("extra") String extra,
+      @JsonProperty("otherConfig") @Nullable OtherConfig otherConfig
   )
   {
     super(
@@ -79,7 +82,8 @@ public class TestModifiedKafkaIndexTaskTuningConfig extends KafkaIndexTaskTuning
         intermediateHandoffPeriod,
         logParseExceptions,
         maxParseExceptions,
-        maxSavedParseExceptions
+        maxSavedParseExceptions,
+            otherConfig
     );
     this.extra = extra;
   }

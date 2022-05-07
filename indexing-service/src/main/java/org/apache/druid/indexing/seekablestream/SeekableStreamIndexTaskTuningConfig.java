@@ -21,6 +21,7 @@ package org.apache.druid.indexing.seekablestream;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.incremental.AppendableIndexSpec;
 import org.apache.druid.segment.indexing.RealtimeTuningConfig;
@@ -32,6 +33,7 @@ import org.joda.time.Period;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.util.Objects;
+import java.util.Properties;
 
 public abstract class SeekableStreamIndexTaskTuningConfig implements AppenderatorConfig
 {
@@ -60,6 +62,7 @@ public abstract class SeekableStreamIndexTaskTuningConfig implements Appenderato
   private final boolean logParseExceptions;
   private final int maxParseExceptions;
   private final int maxSavedParseExceptions;
+  private final OtherConfig otherConfig;
 
   public SeekableStreamIndexTaskTuningConfig(
       @Nullable AppendableIndexSpec appendableIndexSpec,
@@ -81,7 +84,8 @@ public abstract class SeekableStreamIndexTaskTuningConfig implements Appenderato
       @Nullable Period intermediateHandoffPeriod,
       @Nullable Boolean logParseExceptions,
       @Nullable Integer maxParseExceptions,
-      @Nullable Integer maxSavedParseExceptions
+      @Nullable Integer maxSavedParseExceptions,
+      @Nullable OtherConfig otherConfig
   )
   {
     // Cannot be a static because default basePersistDirectory is unique per-instance
@@ -134,6 +138,9 @@ public abstract class SeekableStreamIndexTaskTuningConfig implements Appenderato
     this.logParseExceptions = logParseExceptions == null
                               ? TuningConfig.DEFAULT_LOG_PARSE_EXCEPTIONS
                               : logParseExceptions;
+    this.otherConfig = otherConfig == null
+                        ? new OtherConfig()
+                        :otherConfig;
   }
 
   @Override
@@ -278,6 +285,11 @@ public abstract class SeekableStreamIndexTaskTuningConfig implements Appenderato
     return skipSequenceNumberAvailabilityCheck;
   }
 
+  @JsonProperty
+  public OtherConfig getOtherConfig() {
+    return otherConfig;
+  }
+
   @Override
   public abstract SeekableStreamIndexTaskTuningConfig withBasePersistDirectory(File dir);
 
@@ -334,7 +346,8 @@ public abstract class SeekableStreamIndexTaskTuningConfig implements Appenderato
         skipSequenceNumberAvailabilityCheck,
         logParseExceptions,
         maxParseExceptions,
-        maxSavedParseExceptions
+        maxSavedParseExceptions,
+            otherConfig
     );
   }
 

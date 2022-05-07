@@ -43,6 +43,7 @@ import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexer.RunnerTaskState;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskStatus;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.common.tasklogs.LogUtils;
@@ -205,13 +206,21 @@ public class ForkingTaskRunner
                         command.add("-cp");
                         command.add(taskClasspath);
 
-                        Iterables.addAll(command, new QuotableWhiteSpaceSplitter(config.getJavaOpts()));
-                        Iterables.addAll(command, config.getJavaOptsArray());
-
+                        OtherConfig otherConfig = task.otherConfig();
                         // Override task specific javaOpts
-                        Object taskJavaOpts = task.getContextValue(
-                            ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY
-                        );
+                        LOGGER.info("Other config is :%s",jsonMapper.writeValueAsString(otherConfig));
+                        Object taskJavaOpts = otherConfig.getProperty(ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY);
+
+                        if(taskJavaOpts == null){
+
+                          Iterables.addAll(command, new QuotableWhiteSpaceSplitter(config.getJavaOpts()));
+                          Iterables.addAll(command, config.getJavaOptsArray());
+
+                          taskJavaOpts = task.getContextValue(
+                                  ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY
+                          );
+                        }
+
                         if (taskJavaOpts != null) {
                           Iterables.addAll(
                               command,
