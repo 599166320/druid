@@ -20,6 +20,7 @@
 package org.apache.druid.indexing.kinesis.supervisor;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.kinesis.KinesisIndexTaskTuningConfig;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorTuningConfig;
 import org.apache.druid.segment.IndexSpec;
@@ -30,6 +31,7 @@ import org.joda.time.Period;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.util.Properties;
 
 public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
     implements SeekableStreamSupervisorTuningConfig
@@ -77,7 +79,8 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
         null,
         null,
         null,
-        null
+        null,
+            null
     );
   }
 
@@ -114,7 +117,8 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
       @JsonProperty("maxRecordsPerPoll") @Nullable Integer maxRecordsPerPoll,
       @JsonProperty("intermediateHandoffPeriod") Period intermediateHandoffPeriod,
       @JsonProperty("repartitionTransitionDuration") Period repartitionTransitionDuration,
-      @JsonProperty("offsetFetchPeriod") Period offsetFetchPeriod
+      @JsonProperty("offsetFetchPeriod") Period offsetFetchPeriod,
+      @JsonProperty("otherConfig") @Nullable OtherConfig otherConfig
   )
   {
     super(
@@ -143,7 +147,8 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
         maxParseExceptions,
         maxSavedParseExceptions,
         maxRecordsPerPoll,
-        intermediateHandoffPeriod
+        intermediateHandoffPeriod,
+            otherConfig
     );
 
     this.workerThreads = workerThreads;
@@ -246,6 +251,7 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
            ", maxRecordsPerPoll=" + getMaxRecordsPerPoll() +
            ", intermediateHandoffPeriod=" + getIntermediateHandoffPeriod() +
            ", repartitionTransitionDuration=" + getRepartitionTransitionDuration() +
+            ", otherConfig=" + getOtherConfig() +
            '}';
   }
 
@@ -278,7 +284,8 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
         getMaxParseExceptions(),
         getMaxSavedParseExceptions(),
         getMaxRecordsPerPoll(),
-        getIntermediateHandoffPeriod()
+        getIntermediateHandoffPeriod(),
+            getOtherConfig()
     );
   }
 }

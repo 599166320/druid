@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTaskTuningConfig;
 import org.apache.druid.segment.IndexSpec;
 import org.apache.druid.segment.incremental.AppendableIndexSpec;
@@ -32,6 +33,7 @@ import org.joda.time.Period;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.util.Objects;
+import java.util.Properties;
 
 @JsonTypeName("KinesisTuningConfig")
 public class KinesisIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningConfig
@@ -76,7 +78,8 @@ public class KinesisIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningC
       @JsonProperty("maxParseExceptions") @Nullable Integer maxParseExceptions,
       @JsonProperty("maxSavedParseExceptions") @Nullable Integer maxSavedParseExceptions,
       @JsonProperty("maxRecordsPerPoll") @Nullable Integer maxRecordsPerPoll,
-      @JsonProperty("intermediateHandoffPeriod") @Nullable Period intermediateHandoffPeriod
+      @JsonProperty("intermediateHandoffPeriod") @Nullable Period intermediateHandoffPeriod,
+      @JsonProperty("otherConfig") @Nullable OtherConfig otherConfig
   )
   {
     super(
@@ -99,7 +102,8 @@ public class KinesisIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningC
         intermediateHandoffPeriod,
         logParseExceptions,
         maxParseExceptions,
-        maxSavedParseExceptions
+        maxSavedParseExceptions,
+            otherConfig
     );
     this.recordBufferSize = recordBufferSize == null ? DEFAULT_RECORD_BUFFER_SIZE : recordBufferSize;
     this.recordBufferOfferTimeout = recordBufferOfferTimeout == null
@@ -182,7 +186,8 @@ public class KinesisIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningC
         getMaxParseExceptions(),
         getMaxSavedParseExceptions(),
         getMaxRecordsPerPoll(),
-        getIntermediateHandoffPeriod()
+        getIntermediateHandoffPeriod(),
+        getOtherConfig()
     );
   }
 
@@ -249,6 +254,7 @@ public class KinesisIndexTaskTuningConfig extends SeekableStreamIndexTaskTuningC
            ", maxSavedParseExceptions=" + getMaxSavedParseExceptions() +
            ", maxRecordsPerPoll=" + maxRecordsPerPoll +
            ", intermediateHandoffPeriod=" + getIntermediateHandoffPeriod() +
+            ", otherConfig=" + getOtherConfig() +
            '}';
   }
 }

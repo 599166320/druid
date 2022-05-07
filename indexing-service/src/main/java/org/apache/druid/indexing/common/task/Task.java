@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.batch.parallel.LegacySinglePhaseSubTask;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexSupervisorTask;
@@ -38,6 +39,7 @@ import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryRunner;
 
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * Represents a task that can run on a worker. The general contracts surrounding Tasks are:
@@ -240,5 +242,9 @@ public interface Task
   {
     final ContextValueType value = getContextValue(key);
     return value == null ? defaultValue : value;
+  }
+
+  default OtherConfig otherConfig(){
+    return new OtherConfig();
   }
 }

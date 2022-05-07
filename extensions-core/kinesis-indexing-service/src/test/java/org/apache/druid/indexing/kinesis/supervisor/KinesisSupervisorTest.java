@@ -204,7 +204,8 @@ public class KinesisSupervisorTest extends EasyMockSupport
         null,
         null,
         null,
-        null
+        null,
+            null
     );
     rowIngestionMetersFactory = new TestUtils().getRowIngestionMetersFactory();
     serviceEmitter = new ExceptionCapturingServiceEmitter();
@@ -3941,7 +3942,8 @@ public class KinesisSupervisorTest extends EasyMockSupport
         42, // This property is different from tuningConfig
         null,
         null,
-        null
+        null,
+            null
     );
 
     KinesisIndexTask taskFromStorage = createKinesisIndexTask(
@@ -4995,7 +4997,8 @@ public class KinesisSupervisorTest extends EasyMockSupport
         null,
         null,
         null,
-        null
+        null,
+            null
     );
 
     return new TestableKinesisSupervisor(
