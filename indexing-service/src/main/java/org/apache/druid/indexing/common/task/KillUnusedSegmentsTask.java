@@ -98,26 +98,30 @@ public class KillUnusedSegmentsTask extends AbstractFixedIntervalTask
       LOG.info("Marked %d segments as unused.", numMarked);
     }
 
-    // List unused segments
-    final List<DataSegment> unusedSegments = toolbox
-        .getTaskActionClient()
-        .submit(new RetrieveUnusedSegmentsAction(getDataSource(), getInterval()));
+    boolean finish = false;
+    int i = 0;
+    while(!finish){
+      LOG.info("The %d batch of segments will be delete,current thread id is:%d",i++,Thread.currentThread().getId());
+      // List unused segments
+      final List<DataSegment> unusedSegments = toolbox
+              .getTaskActionClient()
+              .submit(new RetrieveUnusedSegmentsAction(getDataSource(), getInterval()));
 
-    if (!TaskLocks.isLockCoversSegments(taskLockMap, unusedSegments)) {
-      throw new ISE(
-          "Locks[%s] for task[%s] can't cover segments[%s]",
-          taskLockMap.values().stream().flatMap(List::stream).collect(Collectors.toList()),
-          getId(),
-          unusedSegments
-      );
+      if (!TaskLocks.isLockCoversSegments(taskLockMap, unusedSegments)) {
+        throw new ISE(
+                "Locks[%s] for task[%s] can't cover segments[%s]",
+                taskLockMap.values().stream().flatMap(List::stream).collect(Collectors.toList()),
+                getId(),
+                unusedSegments
+        );
+      }
+      // Kill segments
+      toolbox.getTaskActionClient().submit(new SegmentNukeAction(new HashSet<>(unusedSegments)));
+      for (DataSegment segment : unusedSegments) {
+        toolbox.getDataSegmentKiller().kill(segment);
+      }
+      finish = unusedSegments.size() == 0;
     }
-
-    // Kill segments
-    toolbox.getTaskActionClient().submit(new SegmentNukeAction(new HashSet<>(unusedSegments)));
-    for (DataSegment segment : unusedSegments) {
-      toolbox.getDataSegmentKiller().kill(segment);
-    }
-
     return TaskStatus.success(getId());
   }
 
