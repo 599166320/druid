@@ -46,13 +46,12 @@ public class DynamicPartitionsSpec implements PartitionsSpec
   @Nullable
   private final Integer kafkaPartitionTotal;
 
-  @JsonCreator
   public DynamicPartitionsSpec(
-          @JsonProperty(PartitionsSpec.MAX_ROWS_PER_SEGMENT) @Nullable Integer maxRowsPerSegment,
-          @JsonProperty("maxTotalRows") @Nullable Long maxTotalRows
+          Integer maxRowsPerSegment,
+          Long maxTotalRows
   )
   {
-    this(maxRowsPerSegment,maxTotalRows,new ArrayList<>(),-1);
+    this(maxRowsPerSegment,maxTotalRows,new ArrayList<>(0),-1);
   }
 
   @JsonCreator
