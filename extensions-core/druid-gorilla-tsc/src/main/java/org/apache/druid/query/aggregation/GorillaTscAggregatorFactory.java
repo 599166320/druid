@@ -8,6 +8,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.ColumnSelectorFactory;
+import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ValueType;
 
@@ -36,6 +37,42 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
         this.name = name;
         this.maxIntermediateSize = Objects.nonNull(maxIntermediateSize) && maxIntermediateSize>0?maxIntermediateSize:DEFAULT_MAX_INTERMEDIATE_SIZE;
         this.fieldName = fieldName;
+    }
+
+    @Override
+    public AggregateCombiner makeAggregateCombiner() {
+        return new ObjectAggregateCombiner() {
+            private TSG combined;
+            @Override
+            public void reset(ColumnValueSelector selector) {
+                combined = null;
+                fold(selector);
+            }
+
+            @Override
+            public void fold(ColumnValueSelector selector) {
+                TSG other = (TSG) selector.getObject();
+                if (other == null) {
+                    return;
+                }
+                if (combined == null) {
+                    combined = other;
+                }else {
+                    combined = TSG.merge(combined,other);
+                }
+            }
+
+            @Nullable
+            @Override
+            public Object getObject() {
+                return combined;
+            }
+
+            @Override
+            public Class classOfObject() {
+                return TSG.class;
+            }
+        };
     }
 
     /**

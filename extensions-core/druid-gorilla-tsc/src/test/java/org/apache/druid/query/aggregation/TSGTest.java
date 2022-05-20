@@ -13,7 +13,7 @@ public class TSGTest {
 
         //TSG tmp = new TSG(100);
         //tmp.put(100,1.2);
-        TSG tmp = TSG.fromBytes(StringUtils.decodeBase64String("AAAAAGJl5awAAAAAYmXlrECQOAAAAAAAAAAAAAAAAAAAAAAAAAAAjqzlZWIAAAAAAAAAAAAAAA4kEA=="));
+        TSG tmp = TSG.fromBytes(StringUtils.decodeBase64String("AAAAAGKGFDUAAAAAYoYUrT/wAAAAAAAAAAAADwAAAAAAAAAAAAAApjUUhmIAAAAAAAAAAAAAAAD8Tw8="));
         /*long a = tmp.getStartTime();
         long b = tmp.getTime();
         System.out.println(a+","+b);
