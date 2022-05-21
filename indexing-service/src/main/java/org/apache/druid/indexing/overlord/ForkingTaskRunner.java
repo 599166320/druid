@@ -207,9 +207,12 @@ public class ForkingTaskRunner
                         command.add(taskClasspath);
 
                         OtherConfig otherConfig = task.otherConfig();
-                        // Override task specific javaOpts
-                        LOGGER.info("Other config is :%s",jsonMapper.writeValueAsString(otherConfig));
-                        Object taskJavaOpts = otherConfig.getProperty(ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY);
+                        Object taskJavaOpts = null;
+                        if(otherConfig != null){
+                          // Override task specific javaOpts
+                          taskJavaOpts = otherConfig.getProperty(ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY);
+                          LOGGER.info("Other config is :%s",taskJavaOpts);
+                        }
 
                         if(taskJavaOpts == null){
 
