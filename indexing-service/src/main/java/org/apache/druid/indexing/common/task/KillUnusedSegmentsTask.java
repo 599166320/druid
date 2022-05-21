@@ -30,6 +30,7 @@ import org.apache.druid.indexing.common.actions.RetrieveUnusedSegmentsAction;
 import org.apache.druid.indexing.common.actions.SegmentNukeAction;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.indexing.common.actions.TaskLocks;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.timeline.DataSegment;
@@ -37,12 +38,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -98,30 +94,26 @@ public class KillUnusedSegmentsTask extends AbstractFixedIntervalTask
       LOG.info("Marked %d segments as unused.", numMarked);
     }
 
-    boolean finish = false;
-    int i = 0;
-    while(!finish){
-      LOG.info("The %d batch of segments will be delete,current thread id is:%d",i++,Thread.currentThread().getId());
-      // List unused segments
-      final List<DataSegment> unusedSegments = toolbox
-              .getTaskActionClient()
-              .submit(new RetrieveUnusedSegmentsAction(getDataSource(), getInterval()));
+    // List unused segments
+    final List<DataSegment> unusedSegments = toolbox
+        .getTaskActionClient()
+        .submit(new RetrieveUnusedSegmentsAction(getDataSource(), getInterval()));
 
-      if (!TaskLocks.isLockCoversSegments(taskLockMap, unusedSegments)) {
-        throw new ISE(
-                "Locks[%s] for task[%s] can't cover segments[%s]",
-                taskLockMap.values().stream().flatMap(List::stream).collect(Collectors.toList()),
-                getId(),
-                unusedSegments
-        );
-      }
-      // Kill segments
-      toolbox.getTaskActionClient().submit(new SegmentNukeAction(new HashSet<>(unusedSegments)));
-      for (DataSegment segment : unusedSegments) {
-        toolbox.getDataSegmentKiller().kill(segment);
-      }
-      finish = unusedSegments.size() == 0;
+    if (!TaskLocks.isLockCoversSegments(taskLockMap, unusedSegments)) {
+      throw new ISE(
+          "Locks[%s] for task[%s] can't cover segments[%s]",
+          taskLockMap.values().stream().flatMap(List::stream).collect(Collectors.toList()),
+          getId(),
+          unusedSegments
+      );
     }
+
+    // Kill segments
+    toolbox.getTaskActionClient().submit(new SegmentNukeAction(new HashSet<>(unusedSegments)));
+    for (DataSegment segment : unusedSegments) {
+      toolbox.getDataSegmentKiller().kill(segment);
+    }
+
     return TaskStatus.success(getId());
   }
 
@@ -132,5 +124,15 @@ public class KillUnusedSegmentsTask extends AbstractFixedIntervalTask
         taskLock -> taskLockMap.computeIfAbsent(taskLock.getInterval().getStart(), k -> new ArrayList<>()).add(taskLock)
     );
     return taskLockMap;
+  }
+
+  @Override
+  public OtherConfig otherConfig() {
+    OtherConfig otherConfig = super.otherConfig();
+    Map<String, Object>  context = super.getContext();
+    if(context != null){
+      otherConfig.putAll(context);
+    }
+    return otherConfig;
   }
 }

@@ -202,7 +202,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
               .createQuery(
                   StringUtils.format(
                       "SELECT payload FROM %1$s WHERE dataSource = :dataSource and start >= :start "
-                      + "and start <= :end and %2$send%2$s <= :end and used = false order by start asc limit 300",
+                      + "and start <= :end and %2$send%2$s <= :end and used = false",
                       dbTables.getSegmentsTable(),
                       connector.getQuoteString()
                   )
@@ -1400,7 +1400,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
               deleteSegment(handle, segment);
             }
             log.debugSegments(segments, "Delete the metadata of segments");
-            log.info("Removed [%d] segments from metadata storage for dataSource [%s]!Current thread id is:%d", segmentSize, dataSource,Thread.currentThread().getId());
+            log.info("Removed [%d] segments from metadata storage for dataSource [%s]!", segmentSize, dataSource);
 
             return null;
           }
