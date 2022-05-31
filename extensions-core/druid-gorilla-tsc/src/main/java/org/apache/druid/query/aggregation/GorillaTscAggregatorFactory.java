@@ -145,7 +145,18 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
         if (lhs == null) {
             return rhs;
         }
-        return TSG.merge((byte[]) lhs,(byte[]) rhs);
+
+        if(lhs instanceof TSG){
+            lhs = ((TSG) lhs).toBytes();
+        }
+        if(rhs instanceof TSG){
+            rhs = ((TSG) rhs).toBytes();
+        }
+       try {
+           return TSG.merge((byte[]) lhs,(byte[]) rhs);
+       }catch (Exception e){
+           throw  new RuntimeException("tsg merge error:"+e.getMessage());
+       }
     }
 
     @Override
@@ -162,7 +173,11 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
     public Object deserialize(Object object) {
         if (object instanceof String) {
             return TSG.fromBytes(StringUtils.decodeBase64String((String) object));
-        }  else {
+        }  else if (object instanceof byte[]){
+            return object;
+        }else if (object instanceof TSG){
+            return object;
+        }else {
             return object;
         }
     }
