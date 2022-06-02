@@ -1,4 +1,5 @@
 package org.apache.druid.query.aggregation;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.core.DataPoint;
 import org.apache.druid.query.core.TSG;
 
@@ -30,6 +31,9 @@ public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSe
                 return;
             }else if(obj instanceof byte[]){
                 tsg = TSG.fromBytes((byte[])obj);
+                return;
+            }else if(obj instanceof String){
+                tsg = TSG.fromBytes(StringUtils.decodeBase64String((String)obj));
                 return;
             }
         }

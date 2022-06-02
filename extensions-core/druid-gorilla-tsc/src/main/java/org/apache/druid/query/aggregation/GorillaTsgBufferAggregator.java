@@ -1,6 +1,7 @@
 package org.apache.druid.query.aggregation;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.core.DataPoint;
 import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.ColumnValueSelector;
@@ -39,6 +40,10 @@ public class GorillaTsgBufferAggregator extends  BaseGorillaTscAggregator<Column
                 return;
             }else if(obj instanceof byte[]){
                 tsg = TSG.fromBytes((byte[])obj);
+                addToCache(buf,position,tsg);
+                return;
+            }else if(obj instanceof String){
+                tsg = TSG.fromBytes(StringUtils.decodeBase64String((String)obj));
                 addToCache(buf,position,tsg);
                 return;
             }

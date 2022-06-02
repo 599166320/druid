@@ -284,6 +284,10 @@ public class ExpressionSelectors
       } else if (nativeType == null || ValueType.isArray(nativeType)) {
         // Unknown ValueType or array type. Try making an Object selector and see if that gives us anything useful.
         supplier = supplierFromObjectSelector(columnSelectorFactory.makeColumnValueSelector(columnName));
+      } else if( nativeType == ValueType.COMPLEX ){
+        ColumnValueSelector<?> selector = columnSelectorFactory.makeColumnValueSelector(columnName);
+        Supplier<Object> obj = selector::getObject;
+        supplier = makeNullableNumericSupplier(selector, obj);
       } else {
         // Unhandleable ValueType (COMPLEX).
         supplier = null;

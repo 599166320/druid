@@ -59,10 +59,17 @@ public class GorillaTimeSeriesExprMacro implements ExprMacroTable.ExprMacro{
                     // Return null if the argument if null.
                     return ExprEval.of(null);
                 }
+                TSG tsg = null;
+                if(val instanceof TSG){
+                    tsg = (TSG) val;
+                }else if(val instanceof String){
+                    String stringVal = (String) val;
+                    final byte[] decoded = StringUtils.decodeBase64String(stringVal);
+                    tsg = TSG.fromBytes(decoded);
+                }else if(val instanceof byte[]){
+                    tsg = TSG.fromBytes((byte[])val);
+                }
 
-                String stringVal = (String) val;
-                final byte[] decoded = StringUtils.decodeBase64String(stringVal);
-                TSG tsg = TSG.fromBytes(decoded);
                 TreeMap<Long,Double> treeMap = new TreeMap<>();
                 TSGIterator iterator = tsg.toIterator();
                 while(iterator.hasNext()){
@@ -71,6 +78,11 @@ public class GorillaTimeSeriesExprMacro implements ExprMacroTable.ExprMacro{
                         treeMap.put(dataPoint.getTime(),dataPoint.getValue());
                     }
                 }
+
+                if(treeMap.size() == 0){
+                    return ExprEval.bestEffortOf(val);
+                }
+
                 tsg = new TSG(treeMap.firstKey()-treeMap.firstKey()%3600);
                 for(Map.Entry<Long,Double> e:treeMap.entrySet()){
                     tsg.put(e.getKey(),e.getValue());

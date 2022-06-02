@@ -152,6 +152,14 @@ public class GorillaTscAggregatorFactory extends AggregatorFactory{
         if(rhs instanceof TSG){
             rhs = ((TSG) rhs).toBytes();
         }
+
+        if(lhs instanceof String){
+            lhs = StringUtils.decodeBase64String(((String) lhs));
+        }
+        if(rhs instanceof String){
+            rhs = StringUtils.decodeBase64String(((String) rhs));
+        }
+
        try {
            return TSG.merge((byte[]) lhs,(byte[]) rhs);
        }catch (Exception e){

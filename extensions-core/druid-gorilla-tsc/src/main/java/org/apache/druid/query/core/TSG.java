@@ -1,5 +1,7 @@
 package org.apache.druid.query.core;
 
+import org.apache.druid.java.util.common.StringUtils;
+
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
@@ -321,5 +323,10 @@ public class TSG
     }
     public OutBit getOutBitSet(){
         return outBit;
+    }
+
+    @Override
+    public String toString() {
+        return StringUtils.encodeBase64String(this.toBytes());
     }
 }
