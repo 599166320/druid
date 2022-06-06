@@ -96,12 +96,12 @@ public class TaskLocks
                   final TimeChunkLock timeChunkLock = (TimeChunkLock) lock;
                   return timeChunkLock.getInterval().contains(segment.getInterval())
                          && timeChunkLock.getDataSource().equals(segment.getDataSource())
-                         && timeChunkLock.getVersion().compareTo(segment.getVersion()) >= 0;
+                         && (timeChunkLock.getVersion().compareTo(segment.getVersion()) >= 0 || timeChunkLock.getVersion().length()>segment.getVersion().length());
                 } else {
                   final SegmentLock segmentLock = (SegmentLock) lock;
                   return segmentLock.getInterval().contains(segment.getInterval())
                          && segmentLock.getDataSource().equals(segment.getDataSource())
-                         && segmentLock.getVersion().compareTo(segment.getVersion()) >= 0
+                         && (segmentLock.getVersion().compareTo(segment.getVersion()) >= 0 || segmentLock.getVersion().length()>segment.getVersion().length())
                          && segmentLock.getPartitionId() == segment.getShardSpec().getPartitionNum();
                 }
               }
