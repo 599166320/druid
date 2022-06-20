@@ -130,25 +130,27 @@ public class DimFilterUtils
       if (dimFilter != null && shard != null) {
 
         //force partition
-        RangeSet<String> p = dimFilter.getDimensionRangeSet("p");
-        if (p != null && !p.isEmpty()) {
-          Set<Range<String>> rangeSet = p.asRanges();
-          Set<String> ps = new HashSet<>();
-          for(Range<String> r:rangeSet){
-            if (r.isEmpty() || !r.hasLowerBound() || !r.hasUpperBound() ||
-                    r.lowerBoundType() != BoundType.CLOSED || r.upperBoundType() != BoundType.CLOSED ||
-                    !r.lowerEndpoint().equals(r.upperEndpoint())) {
-              break;
+        if(shard.checkForcePartition()){
+          RangeSet<String> p = dimFilter.getDimensionRangeSet("p");
+          if (p != null && !p.isEmpty()) {
+            Set<Range<String>> rangeSet = p.asRanges();
+            Set<String> ps = new HashSet<>();
+            for(Range<String> r:rangeSet){
+              if (r.isEmpty() || !r.hasLowerBound() || !r.hasUpperBound() ||
+                      r.lowerBoundType() != BoundType.CLOSED || r.upperBoundType() != BoundType.CLOSED ||
+                      !r.lowerEndpoint().equals(r.upperEndpoint())) {
+                break;
+              }
+              ps.add(r.lowerEndpoint());
             }
-            ps.add(r.lowerEndpoint());
-          }
-          if(ps.size() > 0){
-            boolean inForcePartiontion = shard.forcePartition(ps);
-            if(inForcePartiontion){
-              retSet.add(obj);
+            if(ps.size() > 0){
+              boolean inForcePartiontion = shard.forcePartition(ps);
+              if(inForcePartiontion){
+                retSet.add(obj);
+              }
+              //Force-query sharding, the result is clear
+              continue;
             }
-            //Force-query sharding, the result is clear
-            continue;
           }
         }
 
