@@ -185,6 +185,12 @@ public class KafkaPartitionNumberedShardSpec extends NumberedShardSpec
         return !domainSet.isEmpty() && chunkPossibleInDomain(domainSet, new HashMap<>());
     }
 
+
+    @Override
+    public boolean checkForcePartition() {
+        return true;
+    }
+
     @Override
     public boolean forcePartition(Set<String> partitionIds) {
         if(partitionIds != null){

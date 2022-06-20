@@ -138,4 +138,8 @@ public interface ShardSpec
     return false;
   }
 
+  default boolean checkForcePartition(){
+    return false;
+  }
+
 }
