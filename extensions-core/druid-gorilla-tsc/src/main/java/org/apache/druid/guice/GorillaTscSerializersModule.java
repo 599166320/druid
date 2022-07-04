@@ -17,28 +17,20 @@
  * under the License.
  */
 package org.apache.druid.guice;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.druid.query.aggregation.*;
 import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.serde.ComplexMetrics;
-import org.apache.druid.sql.guice.SqlBindings;
-
-import java.io.IOException;
-
 public class GorillaTscSerializersModule extends SimpleModule
 {
-    public static final String GORILLA_TSC_TYPE_NAME = "gorilla";
-
     public GorillaTscSerializersModule()
     {
         registerSubtypes(
                 new NamedType(GorillaTscAggregatorFactory.class, GorillaTscAggregatorFactory.TYPE_NAME),
-                new NamedType(GorillaTscPostAggregator.class, GorillaTscPostAggregator.TYPE_NAME)
+                new NamedType(GorillaTscPostAggregator.class, GorillaTscPostAggregator.TYPE_NAME),
+                new NamedType(GorillaTscQueryAggregatorFactory.class, GorillaTscQueryAggregatorFactory.TYPE_NAME)
         );
         addSerializer(TSG.class, new GorillaTscJsonSerializer());
         addDeserializer(TSG.class, new TSGTscJsonDeserializer());
@@ -48,7 +40,8 @@ public class GorillaTscSerializersModule extends SimpleModule
     @VisibleForTesting
     public static void registerSerde()
     {
-        ComplexMetrics.registerSerde(GORILLA_TSC_TYPE_NAME, new GorillaTscComplexMetricSerde());
+        ComplexMetrics.registerSerde(GorillaTscAggregatorFactory.TYPE_NAME, new GorillaTscComplexMetricSerde());
+        ComplexMetrics.registerSerde(GorillaTscQueryAggregatorFactory.TYPE_NAME, new GorillaTscQueryComplexMetricSerde());
     }
 
 

@@ -50,18 +50,24 @@ public class GorillaTsgBufferAggregator extends  BaseGorillaTscAggregator<Column
         }
         if (obj == null) {
             return;
-        }else if(obj instanceof Object[][]){
-            tsg = addNewPoint((Object[][]) obj,tsg);
         }else if(obj instanceof TSG){
-            //查询的时候做合并，就会执行一下代码,这里都是大块的合并
             TSG other = (TSG) obj;
-            tsg = TSG.merge(tsg,other);//sum,avg,等其他函数
+            tsg = TSG.merge(tsg,other);
+        }else if(obj instanceof byte[]){
+            TSG other = TSG.fromBytes((byte[])obj);
+            tsg = TSG.merge(tsg,other);
+        }else if(obj instanceof String){
+            TSG other =  TSG.fromBytes(StringUtils.decodeBase64String((String)obj));
+            tsg = TSG.merge(tsg,other);
+        }else if(obj instanceof Object[][]){
+            //聚合的时候使用
+            tsg = addNewPoint((Object[][]) obj,tsg);
         }else if(obj instanceof DataPoint){
+            //聚合的时候使用
             tsg.put((DataPoint)obj);
         }
         addToCache(buf,position,tsg);
     }
-
 
     @Nullable
     @Override

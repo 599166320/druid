@@ -6,14 +6,10 @@ import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExprType;
-import org.apache.druid.query.core.DataPoint;
 import org.apache.druid.query.core.TSG;
-import org.apache.druid.query.core.TSGIterator;
 import org.apache.druid.segment.column.ValueType;
-
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 public class GorillaTimeSeriesExprMacro implements ExprMacroTable.ExprMacro{
     private static final Logger log = new Logger(GorillaTimeSeriesExprMacro.class);
@@ -40,8 +36,8 @@ public class GorillaTimeSeriesExprMacro implements ExprMacroTable.ExprMacro{
         String fun = (String) funExpr.getLiteralValue();
         long start = (long) startExpr.getLiteralValue();
         long end = (long) endExpr.getLiteralValue();
-        long interval = (long) intervalExpr.getLiteralValue();
-        long range = (long) rangeExpr.getLiteralValue();
+        int interval = Integer.parseInt(intervalExpr.getLiteralValue().toString());
+        int range = Integer.parseInt(rangeExpr.getLiteralValue().toString());
 
         log.debug("fun:%s(%d,%d,%d,%d) is invoked",fun,start,end,interval,range);
 
@@ -70,23 +66,12 @@ public class GorillaTimeSeriesExprMacro implements ExprMacroTable.ExprMacro{
                     tsg = TSG.fromBytes((byte[])val);
                 }
 
-                TreeMap<Long,Double> treeMap = new TreeMap<>();
-                TSGIterator iterator = tsg.toIterator();
-                while(iterator.hasNext()){
-                    DataPoint dataPoint  =iterator.next();
-                    if(dataPoint.getTime()>=start && dataPoint.getTime()<=end){
-                        treeMap.put(dataPoint.getTime(),dataPoint.getValue());
-                    }
-                }
+                TreeMap<Long,Double> treeMap = tsg.toTreeMap(start,end);
 
                 if(treeMap.size() == 0){
-                    return ExprEval.bestEffortOf(val);
+                    return ExprEval.bestEffortOf(null);
                 }
-
-                tsg = new TSG(treeMap.firstKey()-treeMap.firstKey()%3600);
-                for(Map.Entry<Long,Double> e:treeMap.entrySet()){
-                    tsg.put(e.getKey(),e.getValue());
-                }
+                tsg = TSG.fromTreeMap(treeMap);
                 return ExprEval.of(StringUtils.encodeBase64String(tsg.toBytes()));
             }
             @Override

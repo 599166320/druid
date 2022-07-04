@@ -40,7 +40,7 @@ public class GorillaTscComplexMetricSerde extends ComplexMetricSerde
   @Override
   public String getTypeName()
   {
-    return GorillaTscSerializersModule.GORILLA_TSC_TYPE_NAME;
+    return GorillaTscAggregatorFactory.TYPE_NAME;
   }
 
   @Override

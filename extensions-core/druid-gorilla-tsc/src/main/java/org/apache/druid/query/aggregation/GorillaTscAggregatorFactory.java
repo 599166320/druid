@@ -20,11 +20,11 @@ import java.util.Objects;
 @JsonTypeName(GorillaTscAggregatorFactory.TYPE_NAME)
 public class GorillaTscAggregatorFactory extends AggregatorFactory{
     @Nonnull
-    private final String fieldName;
+    protected final String fieldName;
     @Nonnull
-    private final String name;
+    protected final String name;
     protected final int maxIntermediateSize;
-    private  static final int DEFAULT_NUM_ENTRIES = 3600/10;//最细5s一个点
+    public  static final int DEFAULT_NUM_ENTRIES = 3600/10;//最细5s一个点
     public  static final int  DEFAULT_MAX_INTERMEDIATE_SIZE = Long.BYTES*2+Double.BYTES+Integer.BYTES+1+Long.BYTES*DEFAULT_NUM_ENTRIES+Double.BYTES*DEFAULT_NUM_ENTRIES;
     public static final String TYPE_NAME = "gorilla";
     @JsonCreator

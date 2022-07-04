@@ -1,14 +1,9 @@
 package org.apache.druid.query.core;
-
 import org.apache.druid.java.util.common.StringUtils;
-
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.function.Function;
-
 import static java.util.Objects.requireNonNull;
-
 public class TSG
 {
     private final long startTime;
@@ -328,7 +323,7 @@ public class TSG
         return StringUtils.encodeBase64String(this.toBytes());
     }
 
-    public TSG timeSeriesExtract(long start,long end,String func,int interval,int range){
+    public TreeMap<Long,Double> toTreeMap(long start,long end){
         TreeMap<Long,Double> treeMap = new TreeMap<>();
         TSGIterator iterator = this.toIterator();
         while(iterator.hasNext()){
@@ -337,102 +332,25 @@ public class TSG
                 treeMap.put(dataPoint.getTime(),dataPoint.getValue());
             }
         }
-        TSG tsg = this;
-        if(treeMap.size() > 0){
-            tsg = new TSG(treeMap.firstKey()-treeMap.firstKey()%3600);
-            for(Map.Entry<Long,Double> e:treeMap.entrySet()){
-                tsg.put(e.getKey(),e.getValue());
-            }
-        }
-
-
-
-
-
-        return tsg;
-    }
-
-
-    public void increase(TreeMap<Long,Double> treeMap,int interval,int range){
-
-
-       long lastTime = 0;
-       double lastValue = 0;
-       double increaseValue = 0;
-
-        for(Map.Entry<Long,Double> e:treeMap.entrySet()){
-
-            increaseValue += e.getValue() - lastValue;
-        }
-    }
-
-    public static TreeMap<Long,Double> slidingWindow(TreeMap<Long,Double>  treeMap, int windowSize,int slideSize, Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> function) {
-
-        Map.Entry<Long,Double>[] entrys = new Map.Entry[treeMap.size()];
-        treeMap.entrySet().toArray(entrys);
-        treeMap.clear();
-
-
-        List<Map.Entry<Long,Double>> res = new ArrayList<>();
-        MonotoneQueue window = new MonotoneQueue(function);
-
-        long ts = entrys[0].getKey()+windowSize;//windowSize单位是s
-
-        for (Map.Entry<Long, Double> entry : entrys) {
-            if (entry.getKey() < ts) {
-                window.push(entry);
-            } else {
-                res.add(window.apply());
-                window.slide(slideSize);
-                window.push(entry);
-                ts = window.getFist().getKey()+windowSize;
-            }
-        }
-
-        for (Map.Entry<Long, Double> re : res) {
-            treeMap.put(re.getKey(), re.getValue());
-        }
-
         return treeMap;
     }
 
-    //单调队列
-    static class MonotoneQueue{
-        LinkedList<Map.Entry<Long,Double>> queue = new LinkedList<Map.Entry<Long,Double>>();
-        Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> function;
-        public MonotoneQueue(Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> function){
-            this.function = function;
+    public TreeMap<Long,Double> toTreeMap(){
+        TreeMap<Long,Double> treeMap = new TreeMap<>();
+        TSGIterator iterator = this.toIterator();
+        while(iterator.hasNext()){
+            DataPoint dataPoint  =iterator.next();
+            treeMap.put(dataPoint.getTime(),dataPoint.getValue());
         }
+        return treeMap;
+    }
 
-        public void push(Map.Entry<Long,Double> n){
-            queue.addLast(n);
+    public static TSG fromTreeMap(TreeMap<Long,Double> treeMap) {
+        TSG tsg = new TSG(treeMap.firstKey());
+        for (Map.Entry<Long, Double> e : treeMap.entrySet()) {
+            tsg.put(e.getKey(), e.getValue());
         }
-
-        public Map.Entry<Long, Double> apply(){
-            return function.apply(queue);
-        }
-
-        public void pop(){
-            queue.pollFirst();
-        }
-
-        public void slide(int slideSize){
-            long fistTime = queue.getFirst().getKey() + slideSize;
-            int removeSize = 0;
-            for (Map.Entry<Long, Double> longDoubleEntry : queue) {
-                if (longDoubleEntry.getKey() < fistTime) {
-                    removeSize++;
-                }
-            }
-            int i = 0;
-            while (i++ < removeSize){
-                pop();
-            }
-        }
-
-        public Map.Entry<Long,Double> getFist(){
-            return queue.getFirst();
-        }
+        return tsg;
     }
 
 }

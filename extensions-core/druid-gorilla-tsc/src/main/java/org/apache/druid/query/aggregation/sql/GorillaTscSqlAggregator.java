@@ -16,6 +16,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.GorillaTscAggregatorFactory;
 import org.apache.druid.query.aggregation.GorillaTscPostAggregator;
+import org.apache.druid.query.aggregation.GorillaTscQueryAggregatorFactory;
 import org.apache.druid.query.aggregation.post.FieldAccessPostAggregator;
 import org.apache.druid.segment.VirtualColumn;
 import org.apache.druid.segment.column.RowSignature;
@@ -138,12 +139,12 @@ public class GorillaTscSqlAggregator implements SqlAggregator {
         // Look for existing matching aggregatorFactory.
         for (final Aggregation existing : existingAggregations) {
             for (AggregatorFactory factory : existing.getAggregatorFactories()) {
-                if (factory instanceof GorillaTscAggregatorFactory) {
+                if (factory instanceof GorillaTscQueryAggregatorFactory) {
                     final boolean matches = matchingAggregatorFactoryExists(
                             virtualColumnRegistry,
                             input,
                             maxIntermediateSize,
-                            (GorillaTscAggregatorFactory) factory
+                            (GorillaTscQueryAggregatorFactory) factory
                     );
 
                     if (matches) {
@@ -166,10 +167,13 @@ public class GorillaTscSqlAggregator implements SqlAggregator {
 
         // No existing match found. Create a new one.
         if (input.isDirectColumnAccess()) {
-            aggregatorFactory = new GorillaTscAggregatorFactory(
+            aggregatorFactory = new GorillaTscQueryAggregatorFactory(
                     sketchName,
                     input.getDirectColumn(),
-                    maxIntermediateSize
+                    maxIntermediateSize,
+                    fun,
+                    start,
+                    end
             );
         } else {
             VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
@@ -177,10 +181,13 @@ public class GorillaTscSqlAggregator implements SqlAggregator {
                     input,
                     ValueType.COMPLEX
             );
-            aggregatorFactory = new GorillaTscAggregatorFactory(
+            aggregatorFactory = new GorillaTscQueryAggregatorFactory(
                     sketchName,
                     virtualColumn.getOutputName(),
-                    maxIntermediateSize
+                    maxIntermediateSize,
+                    fun,
+                    start,
+                    end
             );
         }
 
@@ -197,7 +204,7 @@ public class GorillaTscSqlAggregator implements SqlAggregator {
         );
     }
 
-    private boolean matchingAggregatorFactoryExists(VirtualColumnRegistry virtualColumnRegistry, DruidExpression input, Integer maxIntermediateSize, GorillaTscAggregatorFactory factory) {
+    private boolean matchingAggregatorFactoryExists(VirtualColumnRegistry virtualColumnRegistry, DruidExpression input, Integer maxIntermediateSize, GorillaTscQueryAggregatorFactory factory) {
         // Check input for equivalence.
         final boolean inputMatches;
         final VirtualColumn virtualInput =
