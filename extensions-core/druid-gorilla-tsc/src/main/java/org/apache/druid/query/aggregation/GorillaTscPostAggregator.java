@@ -5,9 +5,10 @@ import com.google.common.base.Preconditions;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.aggregation.post.PostAggregatorIds;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.query.core.DataPoint;
-import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.tsg.DataPoint;
+import org.apache.druid.tsg.TSG;
+
 import javax.annotation.Nullable;
 import java.util.*;
 public class GorillaTscPostAggregator implements PostAggregator{

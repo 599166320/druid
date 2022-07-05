@@ -6,11 +6,11 @@ import com.google.common.collect.ImmutableList;
 import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.cache.CacheKeyBuilder;
-import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.ColumnSelectorFactory;
 import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.column.ColumnCapabilities;
 import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.tsg.TSG;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

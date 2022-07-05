@@ -3,7 +3,8 @@ package org.apache.druid.query.aggregation;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import org.apache.druid.query.core.TSG;
+import org.apache.druid.tsg.TSG;
+
 
 import java.io.IOException;
 

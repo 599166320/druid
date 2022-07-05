@@ -19,8 +19,6 @@
 package org.apache.druid.query.aggregation;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.guice.GorillaTscSerializersModule;
-import org.apache.druid.query.core.DataPoint;
-import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.GenericColumnSerializer;
 import org.apache.druid.segment.column.ColumnBuilder;
 import org.apache.druid.segment.data.GenericIndexed;
@@ -30,6 +28,8 @@ import org.apache.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
 import org.apache.druid.segment.serde.LargeColumnSupportedComplexColumnSerializer;
 import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
+import org.apache.druid.tsg.TSG;
+
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Iterator;

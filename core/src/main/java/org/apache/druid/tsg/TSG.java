@@ -1,9 +1,16 @@
-package org.apache.druid.query.core;
+package org.apache.druid.tsg;
+
 import org.apache.druid.java.util.common.StringUtils;
+
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.BitSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.TreeMap;
+
 import static java.util.Objects.requireNonNull;
+
 public class TSG
 {
     private final long startTime;
@@ -353,4 +360,7 @@ public class TSG
         return tsg;
     }
 
+    public static TreeMap<Long,Double> getTimeAndValues(String base64){
+        return fromBytes(StringUtils.decodeBase64String(base64)).toTreeMap();
+    }
 }

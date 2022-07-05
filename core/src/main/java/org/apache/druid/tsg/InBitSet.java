@@ -1,4 +1,4 @@
-package org.apache.druid.query.core;
+package org.apache.druid.tsg;
 
 import java.util.BitSet;
 

@@ -1,7 +1,9 @@
 package org.apache.druid.query.aggregation;
-import org.apache.druid.query.core.DataPoint;
-import org.apache.druid.query.core.TSG;
-import org.apache.druid.query.core.TSGIterator;
+
+
+import org.apache.druid.tsg.DataPoint;
+import org.apache.druid.tsg.TSG;
+import org.apache.druid.tsg.TSGIterator;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;

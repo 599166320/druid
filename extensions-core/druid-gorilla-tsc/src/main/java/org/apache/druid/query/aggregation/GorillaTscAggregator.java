@@ -1,9 +1,10 @@
 package org.apache.druid.query.aggregation;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.core.DataPoint;
-import org.apache.druid.query.core.TSG;
 
 import org.apache.druid.segment.ColumnValueSelector;
+import org.apache.druid.tsg.DataPoint;
+import org.apache.druid.tsg.TSG;
+
 import javax.annotation.Nullable;
 
 public class GorillaTscAggregator extends BaseGorillaTscAggregator<ColumnValueSelector>{

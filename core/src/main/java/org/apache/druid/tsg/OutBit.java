@@ -1,4 +1,4 @@
-package org.apache.druid.query.core;
+package org.apache.druid.tsg;
 
 public interface OutBit
 {

@@ -1,7 +1,7 @@
 package org.apache.druid.query.aggregation;
-import org.apache.druid.query.core.OutBitSet;
-import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.data.ObjectStrategy;
+import org.apache.druid.tsg.TSG;
+
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 

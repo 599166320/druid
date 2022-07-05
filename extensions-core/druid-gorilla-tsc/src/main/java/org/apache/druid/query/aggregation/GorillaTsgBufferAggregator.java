@@ -2,9 +2,10 @@ package org.apache.druid.query.aggregation;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.core.DataPoint;
-import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.ColumnValueSelector;
+import org.apache.druid.tsg.DataPoint;
+import org.apache.druid.tsg.TSG;
+
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.IdentityHashMap;

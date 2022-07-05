@@ -6,8 +6,9 @@ import org.apache.druid.math.expr.Expr;
 import org.apache.druid.math.expr.ExprEval;
 import org.apache.druid.math.expr.ExprMacroTable;
 import org.apache.druid.math.expr.ExprType;
-import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.column.ValueType;
+import org.apache.druid.tsg.TSG;
+
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.TreeMap;

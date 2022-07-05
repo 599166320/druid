@@ -21,8 +21,9 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.druid.query.aggregation.*;
-import org.apache.druid.query.core.TSG;
 import org.apache.druid.segment.serde.ComplexMetrics;
+import org.apache.druid.tsg.TSG;
+
 public class GorillaTscSerializersModule extends SimpleModule
 {
     public GorillaTscSerializersModule()
