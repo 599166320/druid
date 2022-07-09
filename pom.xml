@@ -199,6 +199,7 @@
         <module>extensions-contrib/prometheus-emitter</module>
         <!-- distribution packaging -->
         <module>distribution</module>
+        <module>promql</module>
     </modules>
 
     <repositories>
