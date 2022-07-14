@@ -1,4 +1,7 @@
 package org.apache.druid.promql.logical;
 
-public class FunctionOperator extends Operator{
+import java.util.List;
+
+public abstract class FunctionOperator implements Operator {
+    protected List<Operator> params;
 }

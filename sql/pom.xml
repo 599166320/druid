@@ -236,6 +236,11 @@
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.druid</groupId>
+      <artifactId>promql</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

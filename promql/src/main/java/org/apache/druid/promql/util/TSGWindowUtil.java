@@ -6,20 +6,24 @@ import java.util.function.Function;
 
 public class TSGWindowUtil {
 
-    public static TreeMap<Long,Double> slidingWindow(TreeMap<Long,Double>  treeMap, int windowSize, int slideSize, Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> function) {
+    public static TreeMap<Integer,Double> slidingWindow(TreeMap<Integer,Double>  treeMap, int windowSize, int slideSize, Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> function) {
 
-        Map.Entry<Long,Double>[] entrys = new Map.Entry[treeMap.size()];
-        treeMap.entrySet().toArray(entrys);
+        Map.Entry<Integer,Double>[] entrys = new Map.Entry[treeMap.size()];
+        int i = 0;
+        for(Map.Entry<Integer,Double> entry:treeMap.entrySet()){
+            Map.Entry<Integer,Double>[] tmp = new Map.Entry[1];
+            ImmutableMap.of(entry.getKey()-entry.getKey()%slideSize,entry.getValue()).entrySet().toArray(tmp);
+            entrys[i++] = tmp[0];
+        }
         treeMap.clear();
 
-
-        List<Map.Entry<Long,Double>> res = new ArrayList<>();
+        List<Map.Entry<Integer,Double>> res = new ArrayList<>();
         MonotoneQueue window = new MonotoneQueue(function);
 
         long ts = entrys[0].getKey()+windowSize;//windowSize单位是s
 
-        for (Map.Entry<Long, Double> entry : entrys) {
-            if (entry.getKey() < ts) {
+        for (Map.Entry<Integer, Double> entry : entrys) {
+            if (entry.getKey() <= ts) {
                 window.push(entry);
             } else {
                 res.add(window.apply());
@@ -29,7 +33,7 @@ public class TSGWindowUtil {
             }
         }
 
-        for (Map.Entry<Long, Double> re : res) {
+        for (Map.Entry<Integer, Double> re : res) {
             treeMap.put(re.getKey(), re.getValue());
         }
 
@@ -38,17 +42,17 @@ public class TSGWindowUtil {
 
     //单调队列
     static class MonotoneQueue{
-        LinkedList<Map.Entry<Long,Double>> queue = new LinkedList<Map.Entry<Long,Double>>();
-        Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> function;
-        public MonotoneQueue(Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> function){
+        LinkedList<Map.Entry<Integer,Double>> queue = new LinkedList<Map.Entry<Integer,Double>>();
+        Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> function;
+        public MonotoneQueue(Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> function){
             this.function = function;
         }
 
-        public void push(Map.Entry<Long,Double> n){
+        public void push(Map.Entry<Integer,Double> n){
             queue.addLast(n);
         }
 
-        public Map.Entry<Long, Double> apply(){
+        public Map.Entry<Integer, Double> apply(){
             return function.apply(queue);
         }
 
@@ -59,7 +63,7 @@ public class TSGWindowUtil {
         public void slide(int slideSize){
             long fistTime = queue.getFirst().getKey() + slideSize;
             int removeSize = 0;
-            for (Map.Entry<Long, Double> longDoubleEntry : queue) {
+            for (Map.Entry<Integer, Double> longDoubleEntry : queue) {
                 if (longDoubleEntry.getKey() < fistTime) {
                     removeSize++;
                 }
@@ -70,16 +74,16 @@ public class TSGWindowUtil {
             }
         }
 
-        public Map.Entry<Long,Double> getFist(){
+        public Map.Entry<Integer,Double> getFist(){
             return queue.getFirst();
         }
     }
 
 
 
-    public static final Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> MAX_FUN = (list)->{
-        Map.Entry<Long, Double> max = list.getFirst();
-        for(Map.Entry<Long, Double> e : list){
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> MAX_FUN = (list)->{
+        Map.Entry<Integer, Double> max = list.getFirst();
+        for(Map.Entry<Integer, Double> e : list){
             if(max.getValue() < e.getValue()){
                 max = e;
             }
@@ -87,9 +91,9 @@ public class TSGWindowUtil {
         return max;
     };
 
-    public static final Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> MIN_FUN = (list)->{
-        Map.Entry<Long, Double> min = list.getFirst();
-        for(Map.Entry<Long, Double> e : list){
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> MIN_FUN = (list)->{
+        Map.Entry<Integer, Double> min = list.getFirst();
+        for(Map.Entry<Integer, Double> e : list){
             if(min.getValue() > e.getValue()){
                 min = e;
             }
@@ -97,47 +101,58 @@ public class TSGWindowUtil {
         return min;
     };
 
-    public static final Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> INCREASE_FUN = (list)->{
-        Map.Entry<Long, Double> first = list.getFirst();
-        Map.Entry<Long, Double> last = list.getLast();
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> INCREASE_FUN = (list)->{
+        Map.Entry<Integer, Double> first = list.getFirst();
+        Map.Entry<Integer, Double> last = list.getLast();
 
-        for(Map.Entry<Long, Double> e: ImmutableMap.of(last.getKey(),last.getValue()-first.getValue()).entrySet()){
+        for(Map.Entry<Integer, Double> e: ImmutableMap.of(last.getKey(),last.getValue()-first.getValue()).entrySet()){
             return e;
         }
         return null;
     };
 
 
-    public static final Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> RATE_FUN = (list)->{
-        Map.Entry<Long, Double> first = list.getFirst();
-        Map.Entry<Long, Double> last = list.getLast();
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> RATE_FUN = (list)->{
+        Map.Entry<Integer, Double> first = list.getFirst();
+        Map.Entry<Integer, Double> last = list.getLast();
 
-        for(Map.Entry<Long, Double> e: ImmutableMap.of(last.getKey(),(last.getValue()-first.getValue())/(last.getKey()-first.getKey())).entrySet()){
+        for(Map.Entry<Integer, Double> e: ImmutableMap.of(last.getKey(),(last.getValue()-first.getValue())/(last.getKey()-first.getKey())).entrySet()){
             return e;
         }
         return null;
     };
 
-    public static final Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> DELTA_FUN = (list)->{
-        Map.Entry<Long, Double> first = list.getFirst();
-        Map.Entry<Long, Double> last = list.getLast();
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> LAST_FUN = (list)->{
+        Map.Entry<Integer, Double> last = list.getLast();
+        return last;
+    };
 
-        for(Map.Entry<Long, Double> e: ImmutableMap.of(last.getKey(),last.getValue()>first.getValue()?last.getValue()-first.getValue():first.getValue()-last.getValue()).entrySet()){
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> FIRST_FUN = (list)->{
+        Map.Entry<Integer, Double> first = list.getFirst();
+        return first;
+    };
+
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> DELTA_FUN = (list)->{
+        Map.Entry<Integer, Double> first = list.getFirst();
+        Map.Entry<Integer, Double> last = list.getLast();
+
+        for(Map.Entry<Integer, Double> e: ImmutableMap.of(last.getKey(),last.getValue()>first.getValue()?last.getValue()-first.getValue():first.getValue()-last.getValue()).entrySet()){
             return e;
         }
         return null;
     };
 
-    public static final Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> IDELTA_FUN = (list)->{
-        Map.Entry<Long, Double> last = list.getLast();
-        Map.Entry<Long, Double> first = list.get(list.size()-2);
-        for(Map.Entry<Long, Double> e: ImmutableMap.of(first.getKey(),last.getValue()>first.getValue()?last.getValue()-first.getValue():first.getValue()-last.getValue()).entrySet()){
+    public static final Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> IDELTA_FUN = (list)->{
+        Map.Entry<Integer, Double> last = list.getLast();
+        Map.Entry<Integer, Double> first = list.get(list.size()-2);
+        for(Map.Entry<Integer, Double> e: ImmutableMap.of(first.getKey(),last.getValue()>first.getValue()?last.getValue()-first.getValue():first.getValue()-last.getValue()).entrySet()){
             return e;
         }
         return null;
     };
 
-    public static final Map<String,Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>>> FUN_MAP = new HashMap<>();
+
+    public static final Map<String,Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>>> FUN_MAP = new HashMap<>();
     static {
         FUN_MAP.put("max",MAX_FUN);
         FUN_MAP.put("min",MIN_FUN);
@@ -145,10 +160,11 @@ public class TSGWindowUtil {
         FUN_MAP.put("rate",RATE_FUN);
         FUN_MAP.put("delta",DELTA_FUN);
         FUN_MAP.put("idelta",IDELTA_FUN);
+        FUN_MAP.put("last",LAST_FUN);
+        FUN_MAP.put("first",FIRST_FUN);
     }
 
-    public static Function<LinkedList<Map.Entry<Long,Double>>,Map.Entry<Long, Double>> getFun(String fun){
+    public static Function<LinkedList<Map.Entry<Integer,Double>>,Map.Entry<Integer, Double>> getFun(String fun){
         return FUN_MAP.get(fun);
     }
-
 }
