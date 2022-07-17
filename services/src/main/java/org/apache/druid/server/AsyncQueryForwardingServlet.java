@@ -209,6 +209,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
     // them as a generic request.
     final boolean isNativeQueryEndpoint = requestURI.startsWith("/druid/v2") && !requestURI.startsWith("/druid/v2/sql");
     final boolean isSqlQueryEndpoint = requestURI.startsWith("/druid/v2/sql");
+    final boolean isPromqlQueryEndpoint = requestURI.startsWith("/api/v1");
 
     final boolean isAvaticaJson = requestURI.startsWith("/druid/v2/sql/avatica");
     final boolean isAvaticaPb = requestURI.startsWith("/druid/v2/sql/avatica-protobuf");
@@ -268,7 +269,10 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
         handleException(response, objectMapper, e);
         return;
       }
-    } else {
+    }else if(isPromqlQueryEndpoint &&  HttpMethod.POST.is(method)){
+      targetServer = hostFinder.pickDefaultServer();
+    }
+    else {
       targetServer = hostFinder.pickDefaultServer();
     }
 

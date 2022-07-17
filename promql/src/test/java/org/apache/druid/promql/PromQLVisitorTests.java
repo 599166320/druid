@@ -10,6 +10,7 @@ import org.apache.druid.promql.antlr.PromQLParser;
 import org.apache.druid.promql.data.Series;
 import org.apache.druid.promql.logical.Operator;
 import org.apache.druid.promql.logical.PromQLTemrminalVisitor;
+import org.apache.druid.promql.logical.RangeVisitor;
 import org.apache.druid.promql.logical.SeriesSetOperator;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -28,6 +29,8 @@ public class PromQLVisitorTests {
 
     @Test
     public void test() throws IOException {
+
+        System.out.println(PromQLTemrminalVisitor.queryFieldsNoKeysStr());
         //kafka_consumergroup_lag{instance="$instance",topic=~"$topic",consumergroup=~"$consumer_group"}
         //sum(kafka_consumergroup_lag{instance="$instance",topic=~"$topic",consumergroup=~"$consumer_group"}) by (consumergroup, topic)
         //sum(rate(kafka_topic_partition_current_offset{instance="$instance",topic=~"$topic"}[1m]))
@@ -35,27 +38,47 @@ public class PromQLVisitorTests {
         //avg(increase(kafka_topic_partition_current_offset{instance="$instance",topic=~"$topic"}[1m]))
         //histogram_quantile(0.99, sum(increase(kafka_topic_partition_current_offset{}[15s])) by (le,instance))
         //sum(kafka_consumergroup_lag{instance="$instance",topic=~"$topic",consumergroup=~"$consumer_group",le="0"}) by (consumergroup, topic,le)
-        //String promql = "histogram_quantile(0.99, sum(increase(kafka_topic_partition_current_offset{}[15s])) by (le,instance))";
-        String promql = "sum(kafka_consumergroup_lag{instance=\"$instance\",topic=~\"$topic\",consumergroup=~\"$consumer_group\",le=\"0\"}) by (consumergroup, topic,le)";
+        String promql = "histogram_quantile(0.99, sum(increase(kafka_topic_partition_current_offset{}[15s])) by (le,consumergroup))";
+        //String promql = "sum(kafka_consumergroup_lag{instance=\"$instance\",topic=~\"$topic\",consumergroup=~\"$consumer_group\",le=\"0\"}) by(consumergroup)";
+        //promql += " - "+"2*sum(kafka_consumergroup_lag{instance=\"$instance\",topic=~\"$topic\",consumergroup=~\"$consumer_group\",le=\"0\"}) by(instance)";
+        //sum(kafka_consumergroup_current_offset{partition="0",topic="wq_log_normal"}) by(consumergroup)-sum(kafka_consumergroup_current_offset{partition="1",topic="wq_log_normal"}) by(consumergroup)
+        //String promql = "sum(kafka_consumergroup_current_offset{partition=\"0\",topic=\"wq_log_normal\"}) by(consumergroup)";
+        //String promql = "increase(kafka_topic_partition_current_offset{instance=\"$instance\",topic=~\"$topic\"}[15s])";
+        //String promql = "kafka_topic_partition_current_offset{instance=\"$instance\",topic=~\"$topic\"}[15s]";
+        //histogram_quantile(0.95, sum(rate(druid_query_time_bucket[1m])) by (le))
+        //String promql = "histogram_quantile(0.95, sum(increase(druid_query_time_bucket[15s])) by (le))";
+        promql = "histogram_quantile(0.99, sum(increase(kafka_topic_partition_current_offset{}[15s])) by (le))";
+        //String promql  = "{__name__=\"jvm_gc_collection_seconds_count\"}";
         PromQLLexer lexer = new PromQLLexer(new ANTLRInputStream(promql));
         CommonTokenStream tokenStream = new CommonTokenStream(lexer);
         PromQLParser parser = new PromQLParser(tokenStream);
         PromQLParser.ExpressionContext expressionContext = parser.expression();
 
-        PromQLTemrminalVisitor promQLTemrminalVisitor = new PromQLTemrminalVisitor(0,1, ImmutableSet.of("name","env","app","clusterName","le"));
+        PromQLTemrminalVisitor.LabelMatcherVisitor labelMatcherVisitor = new PromQLTemrminalVisitor.LabelMatcherVisitor();
+        String where  = labelMatcherVisitor.visitExpression(expressionContext);
+
+        System.out.println(" where "+where);
+
+        PromQLTemrminalVisitor promQLTemrminalVisitor = new PromQLTemrminalVisitor(0,1);
         Map<String,String> sqlMap =  promQLTemrminalVisitor.visitExpression(expressionContext);
         System.out.println(MAPPER.writeValueAsString(sqlMap));
         //查询结果放在缓存中
         Map<String, SeriesSetOperator> seriesSetOperatorMap = new HashMap<>();
 
+        final int step = 15;
         for(Map.Entry<String,String> e:sqlMap.entrySet()){
-            seriesSetOperatorMap.put(e.getKey(),getSeriesSetOperator());
+            seriesSetOperatorMap.put(e.getKey(),getSeriesSetOperator().vectorSelectorSingle(step));
         }
+
+        ///api/v1/query
+        RangeVisitor rangeVisitor = new RangeVisitor();
+        int range = rangeVisitor.visitExpression(expressionContext);
+        System.out.println("range-->"+range);
 
         System.out.println(expressionContext.toStringTree(parser));
         PromQLVisitor visitor = new PromQLVisitor();
         visitor.setRawSeriesSetOperatorMap(seriesSetOperatorMap);
-        visitor.setStep(15);
+        visitor.setStep(step);
         Operator result = visitor.visitExpression(expressionContext);
         System.out.println(MAPPER.writeValueAsString(result));
     }
@@ -79,7 +102,7 @@ public class PromQLVisitorTests {
                 String le = obj.getString("le");
                 int time = obj.getIntValue("time");
                 double value = obj.getDoubleValue("value");
-                value = ((i++) / 32)*value+value;
+                value = Integer.valueOf((int) ((i++) / 33))*value+value;
 
                 String  k = instance+","+topic+","+consumergroup+","+le;
                 if(seriesMap.containsKey(k)){

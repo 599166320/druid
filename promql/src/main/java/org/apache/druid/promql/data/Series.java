@@ -1,7 +1,9 @@
 package org.apache.druid.promql.data;
+import java.io.Serializable;
+import java.util.Map;
 import java.util.TreeMap;
 
-public class Series {
+public class Series implements Serializable {
     private TreeMap<Integer,Double> dataPoint;
     private TreeMap<String,Object> labels = new TreeMap<>();
 
@@ -22,4 +24,11 @@ public class Series {
     }
 
 
+    public String createKey(){
+        StringBuilder builder = new StringBuilder();
+        for(Map.Entry<String,Object> lb : labels.entrySet()){
+            builder.append(lb.getKey()).append(",").append(lb.getValue()).append(",");
+        }
+        return builder.toString();
+    }
 }

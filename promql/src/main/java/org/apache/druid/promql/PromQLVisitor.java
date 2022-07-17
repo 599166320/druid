@@ -5,6 +5,8 @@ import org.apache.druid.promql.data.Series;
 import org.apache.druid.promql.logical.*;
 import org.apache.druid.promql.util.Quantile;
 import org.apache.druid.promql.util.TSGWindowUtil;
+
+import java.io.*;
 import java.util.*;
 public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
 
@@ -34,7 +36,7 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
             try {
                 return visitVectorOperation(ctx.vectorOperation()).call();
             }catch (Exception e){
-                e.printStackTrace();
+                throw new RuntimeException(e.getMessage());
             }
         }
         Operator operator = super.visitExpression(ctx);
@@ -51,19 +53,19 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
                 try {
                     return new BinaryOperator(left,rigth,ctx.addOp().getText()).call();
                 }catch (Exception e){
-                    e.printStackTrace();
+                    throw new RuntimeException(e.getMessage());
                 }
             }else if(ctx.multOp() != null){
                 try {
                     return new BinaryOperator(left,rigth,ctx.multOp().getText()).call();
                 }catch (Exception e){
-                    e.printStackTrace();
+                    throw new RuntimeException(e.getMessage());
                 }
             }else if(ctx.compareOp() != null){
                 try {
                     return new BinaryOperator(left,rigth,ctx.compareOp().getText()).call();
                 }catch (Exception e){
-                    e.printStackTrace();
+                    throw new RuntimeException(e.getMessage());
                 }
             }
         }
@@ -92,9 +94,11 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
         }
 
         try {
-            return operator;
+            if(operator != null){
+                return operator;
+            }
         }catch (Exception e){
-            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
         }
         return super.visitVector(ctx);
     }
@@ -105,7 +109,12 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
             String agg = ctx.AGGREGATION_OPERATOR().getText();
             List<PromQLParser.ParameterContext> parameterContextList = ctx.parameterList().parameter();
             for(PromQLParser.ParameterContext parameterContext:parameterContextList){
-                SeriesSetOperator operator = (SeriesSetOperator) visitVectorOperation(parameterContext.vectorOperation()).call();
+
+                Operator vectorOperation = visitVectorOperation(parameterContext.vectorOperation());
+                if(vectorOperation instanceof MatrixOperator){
+                    throw new RuntimeException("parse error: expected type instant vector in aggregation expression, got range vector");
+                }
+                SeriesSetOperator operator = (SeriesSetOperator) vectorOperation.call();
                 List<Series> seriesSet = operator.getSeriesSet();
                 AggregationOperator aggregationOperator = AggregationOperatorFactory.createAggregationOperatorByName(agg);
                 aggregationOperator.setSeriesSet(seriesSet);
@@ -120,11 +129,11 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
                 try {
                     return aggregationOperator.call();
                 }catch (Exception e){
-                    e.printStackTrace();
+                    throw new RuntimeException(e.getMessage());
                 }
             }
         }catch (Exception e){
-            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
         }
         return super.visitAggregation(ctx);
     }
@@ -141,6 +150,7 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
             range = Integer.parseInt(rangeText.replaceAll("m","")) * 60;
         }
         matrixOperator.setRange(range);
+        matrixOperator.getSeriesSetOperator().setResultType("matrix");
         return matrixOperator;
     }
 
@@ -151,27 +161,58 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
         return instantOperator;
     }
 
-    public void visitInstantSelector(PromQLParser.InstantSelectorContext ctx, InstantOperator instantOperator)
-    {
-        String metric = ctx.METRIC_NAME().getSymbol().getText();
+    public void visitInstantSelector(PromQLParser.InstantSelectorContext ctx, InstantOperator instantOperator){
         TreeSet<String> keySet = new TreeSet<>();
-        keySet.add("name="+metric);
+        String metric = null;
+        if(ctx.METRIC_NAME() != null){
+            metric = ctx.METRIC_NAME().getSymbol().getText();
+            keySet.add("name="+metric);
+        }
+
         List<Map<String,Object>> whereMap = new ArrayList<>();
         if(ctx.labelMatcherList() != null){
             List<PromQLParser.LabelMatcherContext> labelMatcherContexts =  ctx.labelMatcherList().labelMatcher();
             for(PromQLParser.LabelMatcherContext labelMatcherContext:labelMatcherContexts){
                 Map<String,Object> labelValue = new HashMap<>();
-                labelValue.put("label",labelMatcherContext.labelName().getText());
+                String labelName = labelMatcherContext.labelName().getText();
+                if("__name__".equals(labelName)){
+                    metric = labelMatcherContext.STRING().getText().replaceAll("\"","");
+                    labelName = "name";
+                }
+                labelValue.put("label",labelName);
                 labelValue.put("operator",labelMatcherContext.labelMatcherOperator().getText());
                 labelValue.put("value",labelMatcherContext.STRING().getText());
                 whereMap.add(labelValue);
-                keySet.add(labelMatcherContext.labelName().getText()+","+labelMatcherContext.labelMatcherOperator().getText()+","+labelMatcherContext.STRING().getText());
+                keySet.add(labelName+","+labelMatcherContext.labelMatcherOperator().getText()+","+labelMatcherContext.STRING().getText());
             }
+        }
+        if(Objects.isNull(metric)){
+            throw new RuntimeException("The metric name cannot be empty.");
         }
         instantOperator.setMetric(metric);
         instantOperator.setWhere(whereMap);
         //instantOperator.setKey(String.join(",",keySet));
-        instantOperator.setSeriesSetOperator(rawSeriesSetOperatorMap.get(String.join(",",keySet)));
+        ObjectInputStream objectInputStream = null;
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+        ){
+            objectOutputStream.writeObject(rawSeriesSetOperatorMap.get(String.join(",",keySet)));
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+            objectInputStream = new ObjectInputStream(inputStream);
+            SeriesSetOperator seriesSetOperator = (SeriesSetOperator)objectInputStream.readObject();
+            seriesSetOperator.setResultType("vector");
+            instantOperator.setSeriesSetOperator(seriesSetOperator);
+        }catch (Exception e){
+            throw new RuntimeException(e.getMessage());
+        }finally {
+            if(objectInputStream != null){
+                try {
+                    objectInputStream.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e.getMessage());
+                }
+            }
+        }
     }
 
     @Override
@@ -197,7 +238,9 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
                 TreeMap<String, Object> treeMap = series.getLabels();
                 StringBuilder stringBuilder = new StringBuilder();
                 for(Map.Entry<String,Object> lableValue:treeMap.entrySet()){
-                    if(!"le".equals(lableValue.getKey())){
+                    if("le".equals(lableValue.getKey()) && treeMap.size() == 1){
+                        stringBuilder.append("");
+                    }else if(!"le".equals(lableValue.getKey())){
                         if(stringBuilder.length() > 0){
                             stringBuilder.append(",").append(lableValue.getKey()).append(":").append(lableValue.getValue());
                         }else {
@@ -228,7 +271,12 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
                 for(Series ssl:seriesCollection){
                     TreeMap<Integer, Double> dp = ssl.getDataPoint();
                     TreeMap<String, Object> lb = ssl.getLabels();
-                    Double le = Double.valueOf(lb.get("le").toString());
+                    Double le;
+                    if("+Inf".equals(lb.get("le"))){
+                        le = Double.POSITIVE_INFINITY;
+                    }else {
+                        le = Double.valueOf(lb.get("le").toString());
+                    }
                     qlabels = lb;
                     for(Map.Entry<Integer, Double> de:dp.entrySet()){
                         if(tsBuckets.containsKey(de.getKey())){
@@ -257,8 +305,12 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
             return seriesSetOperator;
         }
 
-        MatrixOperator operator = (MatrixOperator) visitVectorOperation(parameterContextList.get(0).vectorOperation());
-        SeriesSetOperator seriesSetOperator = null;
+        Operator vectorOperator = visitVectorOperation(parameterContextList.get(0).vectorOperation());
+        if(!(vectorOperator instanceof MatrixOperator)){
+            throw new RuntimeException("parse error: expected type range vector in call to function "+fun+", got instant vector");
+        }
+        MatrixOperator operator = (MatrixOperator)vectorOperator;
+        SeriesSetOperator seriesSetOperator;
         try {
             seriesSetOperator = (SeriesSetOperator) operator.call();
             List<Series> seriesSet = seriesSetOperator.getSeriesSet();
@@ -268,7 +320,7 @@ public class PromQLVisitor extends PromQLParserBaseVisitor<Operator> {
                 series.setDataPoint(datapoints);
             }
         }catch (Exception e){
-            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
         }
         return seriesSetOperator;
     }

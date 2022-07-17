@@ -33,5 +33,6 @@ public class SqlHttpModule implements Module
   {
     Jerseys.addResource(binder, SqlResource.class);
     Jerseys.addResource(binder, PromQLResource.class);
+    //Jerseys.addResource(binder, TimeSeriesResource.class);
   }
 }

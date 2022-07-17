@@ -10,7 +10,12 @@ public class SumAggregationOperator extends AggregationOperator{
         for(Series series:seriesSet){
             List<String> groubValue = new ArrayList<>();
             for(String groubBy:groubBys){
-                groubValue.add(series.getLabels().get(groubBy).toString());
+                if(series.getLabels().containsKey(groubBy)){
+                    groubValue.add(series.getLabels().get(groubBy).toString());
+                }else {
+                    throw new RuntimeException("The returned data must contain grouping fields");
+                }
+
             }
             String key = "";
             if(groubValue.size() > 0){

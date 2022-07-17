@@ -76,6 +76,7 @@ public class CliIndexerServerModule implements Module
     );
 
     String[] notChatPaths = new String[]{
+        "/api/v1/*", //QueryResource
         "/druid/v2/*", // QueryResource
         "/status/*", // StatusResource
         "/druid-internal/*", // SegmentListerResource, TaskManagementResource
