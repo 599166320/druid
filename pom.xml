@@ -196,6 +196,7 @@
         <module>extensions-contrib/gce-extensions</module>
         <module>extensions-contrib/aliyun-oss-extensions</module>
         <module>extensions-contrib/prometheus-emitter</module>
+        <module>extensions-contrib/quantile-exact</module>
         <!-- distribution packaging -->
         <module>distribution</module>
     </modules>
