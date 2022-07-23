@@ -55,4 +55,5 @@ public class PostAggregatorIds
   public static final byte TDIGEST_SKETCH_TO_QUANTILE_CACHE_TYPE_ID = 31;
   public static final byte HLL_SKETCH_TO_ESTIMATE_CACHE_TYPE_ID = 32;
   public static final byte GORILLA_TSC_TO_TIME_SERIES_CACHE_TYPE_ID = 33;
+  public static final byte QUANTILE_EXACT_CACHE_TYPE_ID = 34;
 }
