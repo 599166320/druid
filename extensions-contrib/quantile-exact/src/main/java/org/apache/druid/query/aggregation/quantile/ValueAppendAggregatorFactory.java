@@ -5,13 +5,9 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
 import org.apache.druid.java.util.common.StringUtils;
-import org.apache.druid.query.aggregation.Aggregator;
-import org.apache.druid.query.aggregation.AggregatorFactory;
-import org.apache.druid.query.aggregation.AggregatorUtil;
-import org.apache.druid.query.aggregation.BufferAggregator;
-import org.apache.druid.query.dimension.DefaultDimensionSpec;
+import org.apache.druid.query.aggregation.*;
 import org.apache.druid.segment.ColumnSelectorFactory;
-import org.apache.druid.segment.DimensionSelector;
+import org.apache.druid.segment.ColumnValueSelector;
 import org.apache.druid.segment.column.ValueType;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -45,7 +41,7 @@ public class ValueAppendAggregatorFactory extends AggregatorFactory
     public byte[] getCacheKey() {
         byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
         return ByteBuffer.allocate(2 + fieldNameBytes.length)
-                .put(AggregatorUtil.DISTINCT_COUNT_CACHE_KEY)
+                .put(AggregatorUtil.VALUE_APPEND_CACHE_TYPE_ID)
                 .put(fieldNameBytes)
                 .put(AggregatorUtil.STRING_SEPARATOR)
                 .array();
@@ -82,7 +78,7 @@ public class ValueAppendAggregatorFactory extends AggregatorFactory
         if (lhs == null) {
             return rhs;
         }
-        ((ArrayList<Double>) lhs).addAll((ArrayList<Double>)rhs);
+        ((ValueCollection) lhs).addAll((ValueCollection)rhs);
         return lhs;
     }
 
@@ -103,22 +99,16 @@ public class ValueAppendAggregatorFactory extends AggregatorFactory
 
     @Override
     public Object deserialize(Object object) {
-        final ByteBuffer buffer;
         if (object instanceof byte[]) {
-            buffer = ByteBuffer.wrap((byte[]) object);
+            return ValueCollection.deserialize((byte[]) object);
         } else if (object instanceof ByteBuffer) {
             // Be conservative, don't assume we own this buffer.
-            buffer = ((ByteBuffer) object).duplicate();
+            return ValueCollection.deserialize(((ByteBuffer) object).duplicate().array());
         } else if (object instanceof String) {
-            buffer = ByteBuffer.wrap(StringUtils.decodeBase64(StringUtils.toUtf8((String) object)));
+           return ValueCollection.deserialize(StringUtils.decodeBase64(StringUtils.toUtf8((String) object)));
         } else {
             return object;
         }
-        ArrayList<Double> list = new ArrayList<>();
-        while(buffer.hasRemaining()){
-            list.add(buffer.getDouble());
-        }
-        return list;
     }
 
     @Nullable
@@ -181,4 +171,42 @@ public class ValueAppendAggregatorFactory extends AggregatorFactory
     public int hashCode() {
         return Objects.hash(name, fieldName, fun, maxIntermediateSize);
     }
+
+
+    @Override
+    public AggregateCombiner makeAggregateCombiner() {
+        return new ObjectAggregateCombiner() {
+            private ValueCollection combined;
+            @Override
+            public void reset(ColumnValueSelector selector) {
+                combined = null;
+                fold(selector);
+            }
+
+            @Override
+            public void fold(ColumnValueSelector selector) {
+                ValueCollection other = (ValueCollection) selector.getObject();
+                if (other == null) {
+                    return;
+                }
+                if (combined == null) {
+                    combined = other;
+                }else {
+                    combined.addAll(other);
+                }
+            }
+
+            @Nullable
+            @Override
+            public Object getObject() {
+                return combined;
+            }
+
+            @Override
+            public Class classOfObject() {
+                return ValueCollection.class;
+            }
+        };
+    }
+
 }

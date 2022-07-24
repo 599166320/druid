@@ -7,12 +7,12 @@ import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.aggregation.post.PostAggregatorIds;
+import org.apache.druid.query.aggregation.quantile.ValueCollection;
 import org.apache.druid.query.cache.CacheKeyBuilder;
 import org.apache.druid.segment.column.ValueType;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.*;
-
 public class QuantileExactPostAggregator implements PostAggregator {
     private static final Logger log = new Logger(QuantileExactPostAggregator.class);
     private final String name;
@@ -59,31 +59,25 @@ public class QuantileExactPostAggregator implements PostAggregator {
     @Override
     public Object compute(Map<String, Object> combinedAggregators) {
         Object tmp = fieldName.compute(combinedAggregators);
-        ArrayList<Double> values = null;
-        if(tmp instanceof ArrayList){
-            values = (ArrayList) tmp;
+        ValueCollection values = null;
+        if(tmp instanceof ValueCollection){
+            values = (ValueCollection) tmp;
         }else if(tmp instanceof byte[]){
-            ByteBuffer buffer = ByteBuffer.wrap((byte[]) tmp);
-            values = new ArrayList<>();
-            while(buffer.hasRemaining()){
-                values.add(buffer.getDouble());
-            }
+            values = ValueCollection.deserialize((byte[]) tmp);
         }
-        Collections.sort(values);
         String [] funs = fun.split(",");
-        Double [] results = new Double[funs.length];
+        double [] results = new double[funs.length];
         int i = 0;
         for(String f : funs){
             if("max".equals(f)){
-                results[i] = values.get(values.size()-1);
+                results[i] = values.max();
             }else if("min".equals(f)){
-                results[i] = values.get(0);
+                results[i] = values.min();
             }else if("mean".equals(f)){
-                double sum = values.stream().mapToDouble(Double::doubleValue).sum();
-                results[i] = sum/values.size();
+                results[i] = values.mean();
             }else if(f.startsWith("p")){
                 double p = Double.valueOf(f.replace("p",""));
-                int pidx = (int) (values.size()*p);
+                int pidx = (int) (values.count()*p);
                 results[i] = values.get(pidx);
             }
             i++;
@@ -93,8 +87,17 @@ public class QuantileExactPostAggregator implements PostAggregator {
 
     @Nullable
     @Override
+    @JsonProperty
     public String getName() {
         return name;
+    }
+    @JsonProperty
+    public PostAggregator getFieldName() {
+        return fieldName;
+    }
+    @JsonProperty
+    public String getFun() {
+        return fun;
     }
 
     @Nullable

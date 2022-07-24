@@ -1,0 +1,1 @@
+select name,env,app,clusterName,ip,bu,instance,p,port,quantile,labels,le,gorilla_tsc_time_series_extract("value",'fun',1658055780000,1658059380000,1,2) as timeValue from "middleware-monitor-metrics-test01" where  __time>=MILLIS_TO_TIMESTAMP(1658052180000) and __time<=MILLIS_TO_TIMESTAMP(1658059380000) and  name='kafka_brokers'

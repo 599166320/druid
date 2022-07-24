@@ -11,10 +11,8 @@ import org.apache.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.druid.segment.serde.ComplexMetricSerde;
 import org.apache.druid.segment.serde.LargeColumnSupportedComplexColumnSerializer;
 import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
-
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 
 public class ValueAppendComplexMetricSerde extends ComplexMetricSerde
@@ -32,7 +30,7 @@ public class ValueAppendComplexMetricSerde extends ComplexMetricSerde
         return new ComplexMetricExtractor(){
             @Override
             public Class extractedClass() {
-                return ArrayList.class;
+                return ValueCollection.class;
             }
             @Nullable
             @Override
@@ -44,14 +42,14 @@ public class ValueAppendComplexMetricSerde extends ComplexMetricSerde
             @Override
             public Object extractValue(InputRow inputRow, String metricName, AggregatorFactory agg) {
                 Object rawValue = inputRow.getRaw(metricName);
-                if (rawValue instanceof ArrayList) {
-                    return (ArrayList) rawValue;
+                if (rawValue instanceof ValueCollection) {
+                    return (ValueCollection) rawValue;
                 } else {
                     List<String> dimValues = inputRow.getDimension(metricName);
                     if (dimValues == null) {
                         return null;
                     }
-                    return Double.valueOf(dimValues.get(0).toString());
+                    return Double.valueOf(dimValues.get(0).toString()).intValue();
                 }
             }
         };
@@ -60,7 +58,7 @@ public class ValueAppendComplexMetricSerde extends ComplexMetricSerde
     @Override
     public void deserializeColumn(ByteBuffer buffer, ColumnBuilder columnBuilder)
     {
-        final GenericIndexed<ArrayList> column = GenericIndexed.read(
+        final GenericIndexed<ValueCollection> column = GenericIndexed.read(
                 buffer,
                 this.getObjectStrategy(),
                 columnBuilder.getFileMapper()
@@ -79,7 +77,7 @@ public class ValueAppendComplexMetricSerde extends ComplexMetricSerde
     }
 
     @Override
-    public ObjectStrategy<ArrayList> getObjectStrategy(){
+    public ObjectStrategy<ValueCollection> getObjectStrategy(){
         return STRATEGY;
     }
 }

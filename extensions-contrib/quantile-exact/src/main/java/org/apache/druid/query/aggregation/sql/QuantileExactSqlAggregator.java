@@ -72,11 +72,11 @@ public class QuantileExactSqlAggregator implements SqlAggregator{
 
 
         Integer maxIntermediateSize = ValueAppendAggregatorFactory.DEFAULT_MAX_INTERMEDIATE_SIZE;
-        if (aggregateCall.getArgList().size() > 1) {
+        if (aggregateCall.getArgList().size() > 2) {
             final RexNode maxIntermediateSizeArg = Expressions.fromFieldAccess(
                     rowSignature,
                     project,
-                    aggregateCall.getArgList().get(1)
+                    aggregateCall.getArgList().get(2)
             );
             maxIntermediateSize = ((Number) RexLiteral.value(maxIntermediateSizeArg)).intValue();
             if(maxIntermediateSize == 0){
@@ -125,7 +125,7 @@ public class QuantileExactSqlAggregator implements SqlAggregator{
             VirtualColumn virtualColumn = virtualColumnRegistry.getOrCreateVirtualColumnForExpression(
                     plannerContext,
                     input,
-                    ValueType.COMPLEX
+                    ValueType.FLOAT
             );
             aggregatorFactory = new ValueAppendAggregatorFactory(
                     sketchName,
@@ -166,7 +166,7 @@ public class QuantileExactSqlAggregator implements SqlAggregator{
     }
 
     private static class  QuantileExactSqlAggFunction extends SqlAggFunction{
-        private static final String SIGNATURE1 = "'" + NAME + "(column)'\n";
+        private static final String SIGNATURE1 = "'" + NAME + "(column,fun)'\n";
         QuantileExactSqlAggFunction()
         {
             super(
@@ -177,8 +177,8 @@ public class QuantileExactSqlAggregator implements SqlAggregator{
                     null,
                     OperandTypes.or(
                             OperandTypes.and(
-                                    OperandTypes.sequence(SIGNATURE1, OperandTypes.ANY),
-                                    OperandTypes.family(SqlTypeFamily.ANY)
+                                    OperandTypes.sequence(SIGNATURE1, OperandTypes.ANY,OperandTypes.LITERAL),
+                                    OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.STRING)
                             )
                     ),
                     SqlFunctionCategory.USER_DEFINED_FUNCTION,

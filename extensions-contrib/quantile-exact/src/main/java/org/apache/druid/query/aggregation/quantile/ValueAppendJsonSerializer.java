@@ -5,20 +5,16 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-public class ValueAppendJsonSerializer extends JsonSerializer<ArrayList>
+public class ValueAppendJsonSerializer extends JsonSerializer<ValueCollection>
 {
     @Override
     public void serialize(
-            ArrayList values,
+            ValueCollection values,
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider
     ) throws IOException
     {
-        ByteBuffer buffer = ByteBuffer.allocate(Double.BYTES*values.size());
-        for(Object v:values){
-            buffer.putDouble((Double) v);
-        }
-        jsonGenerator.writeBinary(buffer.array());
+        jsonGenerator.writeBinary(values.serialize());
     }
 
 }
