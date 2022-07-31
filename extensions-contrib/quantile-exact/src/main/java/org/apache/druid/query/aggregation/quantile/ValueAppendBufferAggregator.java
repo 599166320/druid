@@ -2,13 +2,16 @@ package org.apache.druid.query.aggregation.quantile;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.segment.ColumnValueSelector;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
 public class ValueAppendBufferAggregator implements BufferAggregator
 {
+    private static final Logger log = new Logger(ValueAppendBufferAggregator.class);
     private final IdentityHashMap<ByteBuffer, Int2ObjectMap<ValueCollection>> cache = new IdentityHashMap();
     private final ColumnValueSelector selector;
     public ValueAppendBufferAggregator(ColumnValueSelector selector) {
@@ -17,6 +20,8 @@ public class ValueAppendBufferAggregator implements BufferAggregator
 
     @Override
     public void init(ByteBuffer buf, int position) {
+        ValueCollection values = new ValueCollection();
+        addToCache(buf,position,values);
     }
 
     @Override
@@ -27,35 +32,23 @@ public class ValueAppendBufferAggregator implements BufferAggregator
             values = int2ObjectMap.get(position);
         }
         Object obj = selector.getObject();
-        if(values == null && obj != null){
-            if(obj instanceof Integer){
-                values = new ValueCollection();
-                values.add((Integer) obj,1);
-            }else if(obj instanceof ValueCollection){
-                values = (ValueCollection) obj;
-            }else if(obj instanceof byte[]){
-                values = ValueCollection.deserialize((byte[]) obj);
-            }else if(obj instanceof String){
-                values = ValueCollection.deserialize(StringUtils.decodeBase64(StringUtils.toUtf8((String) obj)));
-            }
-        }else if(obj != null){
-            if(obj instanceof Integer){
-                values.add((Integer) obj,1);
-            }else if(obj instanceof ValueCollection){
+        if( obj != null){
+            if(obj instanceof ValueCollection){
                 values.addAll((ValueCollection) obj);
-            }else if(obj instanceof byte[]){
+            }else if(obj instanceof Integer){
+                values.add((Integer) obj,1);
+            } else if(obj instanceof byte[]){
                 values.addAll(ValueCollection.deserialize((byte[]) obj));
             }else if(obj instanceof String){
                 values.addAll(ValueCollection.deserialize(StringUtils.decodeBase64(StringUtils.toUtf8((String) obj))));
             }
         }
-        addToCache(buf,position,values);
     }
 
     @Nullable
     @Override
     public Object get(ByteBuffer buf, int position) {
-        Object tmp = cache.get(buf).get(position);
+        ValueCollection tmp = cache.get(buf).get(position);
         return tmp;
     }
 

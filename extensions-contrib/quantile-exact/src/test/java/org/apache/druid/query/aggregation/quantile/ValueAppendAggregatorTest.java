@@ -1,5 +1,8 @@
 package org.apache.druid.query.aggregation.quantile;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import me.lemire.integercompression.differential.IntegratedIntCompressor;
+import org.apache.druid.collections.CloseableStupidPool;
+import org.apache.druid.collections.ResourceHolder;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.guice.QuantileExactExtensionModule;
 import org.apache.druid.jackson.DefaultObjectMapper;
@@ -17,12 +20,17 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.roaringbitmap.IntConsumer;
+import org.roaringbitmap.RoaringBitmap;
+
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
+
 @RunWith(Parameterized.class)
 public class ValueAppendAggregatorTest extends InitializedNullHandlingTest
 {
@@ -46,6 +54,54 @@ public class ValueAppendAggregatorTest extends InitializedNullHandlingTest
             constructors.add(new Object[]{config});
         }
         return constructors;
+    }
+
+    @Test
+    public void compress(){
+        IntegratedIntCompressor iic = new IntegratedIntCompressor();
+        int[] data = {100,2,200,23,38,56,7,100,2,3,99,0,128,20348,123,56,777};
+        System.out.println("原始数据:"+data.length);
+        int[] compressed = iic.compress(data); // compressed array
+        System.out.println("压缩数据:"+compressed.length);
+        int[] recov = iic.uncompress(compressed); // equals to data
+        System.out.println("解压数据:"+recov.length);
+    }
+
+    @Test
+    public void mem(){
+
+        CloseableStupidPool<ByteBuffer> stupidPool = new CloseableStupidPool<>(
+                "QueryRunners-bufferPool",
+                () -> ByteBuffer.allocate(1024 * 1024 * 10)
+        );
+
+        ResourceHolder<ByteBuffer> resourceHolder = stupidPool.take();
+        ByteBuffer buffer = resourceHolder.get();
+        for(int i = 0;i<100;i++){
+            buffer.putInt(i);
+        }
+
+        buffer.flip();
+        while (buffer.hasRemaining()){
+            System.out.println(buffer.getInt());
+        }
+        System.out.println(buffer.hashCode());
+        resourceHolder.close();
+
+        //复用
+        resourceHolder = stupidPool.take();
+        buffer = resourceHolder.get();
+        buffer.clear();
+        for(int i = 0;i<100;i++){
+            buffer.putInt(i);
+        }
+
+        buffer.flip();
+        while (buffer.hasRemaining()){
+            System.out.println(buffer.getInt());
+        }
+        System.out.println(buffer.hashCode());
+        resourceHolder.close();
     }
 
     @Test
@@ -273,5 +329,71 @@ public class ValueAppendAggregatorTest extends InitializedNullHandlingTest
         Assert.assertEquals(0.001, quantiles[0], 0.0006); // min value
         Assert.assertEquals(NullHandling.replaceWithDefault() ? 0.47 : 0.5, quantiles[1], 0.05); // median value
         Assert.assertEquals(1, quantiles[2], 0.05); // max value
+    }
+
+
+    @Test
+    public void test1(){
+        // 向r1中添加1、2、3、1000四个数字
+        RoaringBitmap r1 = RoaringBitmap.bitmapOf(1, 2, 3, 1000);
+        // 返回第3个数字是1000
+        System.out.println(r1.select(3));
+
+        r1.add(5);
+
+        // 返回10000的索引,是4
+        System.out.println(r1.rank(1000));
+        System.out.println(r1.rank(3));
+        System.out.println(r1.rank(2));
+        System.out.println(r1.rank(1));
+
+        // 是否包含1000和7,true和false
+        System.out.println(r1.contains(1000));
+        System.out.println(r1.contains(7));
+
+        RoaringBitmap r2 = new RoaringBitmap();
+        // 向r2添加10000-12000共2000个数字
+        r2.add(10000L, 12000L);
+
+        // 将两个r1,r2进行合并,数值进行合并,合并产生新的RoaringBitmap
+        RoaringBitmap r3 = RoaringBitmap.or(r1, r2);
+
+        // r1和r2进行位运算,并将结果赋值给r1
+        r1.or(r2);
+
+        // 判断r1与r3是否相等,true
+        System.out.println(r1.equals(r3));
+
+        // 查看r1中存储了多少个值,2004
+        System.out.println(r1.getLongCardinality());
+
+        // 两种遍历方式
+        for(int i : r1){
+            System.out.println(i);
+        }
+
+        r1.forEach((Consumer<? super Integer>) i -> System.out.println(i.intValue()));
+    }
+
+    @Test
+    public void test2(){
+        RoaringBitmap roaringBitmap = new RoaringBitmap();
+        roaringBitmap.add(1L, 10L);
+
+        // 遍历输出
+        roaringBitmap.forEach((IntConsumer) i -> System.out.println(i));
+
+        // 遍历放入List中
+        List<Integer> numbers = new ArrayList<>();
+        roaringBitmap.forEach((IntConsumer) numbers::add);
+        System.out.println(numbers);
+
+        roaringBitmap.runOptimize();
+
+        int size = roaringBitmap.serializedSizeInBytes();
+        ByteBuffer buffer = ByteBuffer.allocate(size);
+        roaringBitmap.serialize(buffer);
+        // 将RoaringBitmap的数据转成字节数组,这样就可以直接存入数据库了,数据库字段类型BLOB
+        byte[] bitmapData = buffer.array();
     }
 }

@@ -1,20 +1,24 @@
 package org.apache.druid.query.aggregation.quantile;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.druid.query.aggregation.encdec.EncoderDecoder;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class ValueCollection implements Serializable {
 
-    private Map<Integer,Integer> values = new HashMap<>();
+    private Map<Integer,Integer> values = new ConcurrentHashMap<>();
 
-    public Integer get(int idx){
+    public List<Integer> sortKey(){
         List<Integer> list = new ArrayList<>(values.keySet());
         Collections.sort(list);
+        return list;
+    }
+
+    public Integer get(int idx,List<Integer> list){
         int v = 0;
         for(Integer k:list){
             if(v <= idx && idx <= v+values.get(k)){
@@ -75,8 +79,9 @@ public class ValueCollection implements Serializable {
 
     public void addAll(ValueCollection other){
         for(Map.Entry<Integer,Integer> e:other.values.entrySet()){
-            values.put(e.getKey(),e.getValue()+values.getOrDefault(e.getKey(),0));
+            this.values.put(e.getKey(),e.getValue()+this.values.getOrDefault(e.getKey(),0));
         }
+
     }
 
     public static  ValueCollection deserialize(byte[] datas){
@@ -84,32 +89,31 @@ public class ValueCollection implements Serializable {
     }
 
     public static  ValueCollection deserialize(ByteBuffer buffer){
-        //int srcLen = buffer.getInt();
-        //length太大
-        //datas = EncoderDecoder.decompressorByte(buffer.get(new byte[buffer.limit()-buffer.position()],0,buffer.limit()-buffer.position()).array(),srcLen);
-        ValueCollection values = new ValueCollection();
+        IntBuffer ib = IntBuffer.allocate(buffer.limit()/Integer.BYTES);
         while(buffer.hasRemaining()){
-            values.add(buffer.getInt(),buffer.getInt());
+            ib.put(buffer.getInt());
+        }
+        int []datas = EncoderDecoder.intDeCompressed(ib.array());
+        ValueCollection values = new ValueCollection();
+        for(int i = 0; i< datas.length; i+=2){
+            values.add(datas[i],datas[i+1]);
         }
         return values;
     }
 
     public byte[] serialize()
     {
-        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES*this.size());
-        ArrayList<Integer> vlist = this.getValues();
-        for(Object v:vlist){
-            buffer.putInt((Integer) v);
+        IntBuffer ib = IntBuffer.allocate(this.size());//内存池优化
+        for(Map.Entry<Integer,Integer> e:values.entrySet()){
+            ib.put(e.getKey());
+            ib.put(e.getValue());
+        }
+        int [] compressDatas = EncoderDecoder.intCompressed(ib.array());
+        //释放内存池内存
+        ByteBuffer buffer = ByteBuffer.allocate(compressDatas.length*Integer.BYTES);
+        for(int d : compressDatas){
+            buffer.putInt(d);
         }
         return buffer.array();
-        /*
-        byte [] datas = buffer.array();
-        int srcLen = datas.length;
-        byte[] compressedBytes = EncoderDecoder.compressedByte(datas);
-        buffer = ByteBuffer.allocate(Integer.BYTES+compressedBytes.length);
-        buffer.putInt(srcLen);
-        buffer.put(compressedBytes);
-        return buffer.array();*/
     }
-
 }

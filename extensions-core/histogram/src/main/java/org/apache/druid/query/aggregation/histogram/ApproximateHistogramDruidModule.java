@@ -24,7 +24,10 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
+import org.apache.druid.guice.ExpressionModule;
 import org.apache.druid.initialization.DruidModule;
+import org.apache.druid.query.aggregation.histogram.expression.QuantileExtractExprMacro;
+import org.apache.druid.query.aggregation.histogram.expression.QuantileExtractOperatorConversion;
 import org.apache.druid.query.aggregation.histogram.sql.FixedBucketsHistogramQuantileSqlAggregator;
 import org.apache.druid.query.aggregation.histogram.sql.QuantileSqlAggregator;
 import org.apache.druid.segment.serde.ComplexMetrics;
@@ -61,6 +64,8 @@ public class ApproximateHistogramDruidModule implements DruidModule
     registerSerde();
     SqlBindings.addAggregator(binder, QuantileSqlAggregator.class);
     SqlBindings.addAggregator(binder, FixedBucketsHistogramQuantileSqlAggregator.class);
+    SqlBindings.addOperatorConversion(binder, QuantileExtractOperatorConversion.class);
+    ExpressionModule.addExprMacro(binder, QuantileExtractExprMacro.class);
   }
 
   @VisibleForTesting

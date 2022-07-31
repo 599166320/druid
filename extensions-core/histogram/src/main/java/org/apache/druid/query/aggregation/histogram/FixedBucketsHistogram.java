@@ -32,6 +32,7 @@ import org.apache.druid.java.util.common.StringUtils;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -313,6 +314,8 @@ public class FixedBucketsHistogram
   @Override
   public String toString()
   {
+    return this.toBase64();
+    /*
     return "{" +
            "lowerLimit=" + lowerLimit +
            ", upperLimit=" + upperLimit +
@@ -325,7 +328,9 @@ public class FixedBucketsHistogram
            ", count=" + count +
            ", max=" + max +
            ", min=" + min +
-           '}';
+           '}';*/
+
+
   }
 
   @Override
@@ -456,6 +461,11 @@ public class FixedBucketsHistogram
       combineHistogram((FixedBucketsHistogram) val);
     } else if (val instanceof Number) {
       add(((Number) val).doubleValue());
+    } else if (val instanceof ArrayList) {
+      ArrayList<String> vs = (ArrayList<String>) val;
+      for(String v:vs){
+        combineHistogram(fromBase64((String) v));
+      }
     } else {
       throw new ISE("Unknown class for object: " + val.getClass());
     }
@@ -754,6 +764,43 @@ public class FixedBucketsHistogram
         while (pctIdx < pcts.length && nextP >= pcts[pctIdx]) {
           double f = (pcts[pctIdx] - prevP) / (nextP - prevP);
           results[pctIdx] = (float) (f * (nextB - prevB) + prevB);
+          ++pctIdx;
+        }
+        if (pctIdx >= pcts.length) {
+          break;
+        }
+        prev = next;
+        prevP = nextP;
+        prevB = nextB;
+      }
+
+      return results;
+    }
+    finally {
+      readWriteLock.readLock().unlock();
+    }
+  }
+
+  public Double[] percentilesDouble(double[] pcts)
+  {
+    readWriteLock.readLock().lock();
+
+    try {
+      Double[] results = new Double[pcts.length];
+      long total = count;
+
+      int pctIdx = 0;
+
+      long prev = 0;
+      double prevP = 0.0;
+      double prevB = lowerLimit;
+      for (int i = 0; i < numBuckets; ++i) {
+        long next = prev + histogram[i];
+        double nextP = 100.0 * next / total;
+        double nextB = (i + 1) * bucketSize + lowerLimit;
+        while (pctIdx < pcts.length && nextP >= pcts[pctIdx]) {
+          double f = (pcts[pctIdx] - prevP) / (nextP - prevP);
+          results[pctIdx] = (Double) (f * (nextB - prevB) + prevB);
           ++pctIdx;
         }
         if (pctIdx >= pcts.length) {

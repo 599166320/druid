@@ -101,14 +101,14 @@ public class FixedBucketsHistogramTest
         FixedBucketsHistogram.OutlierHandlingMode.OVERFLOW,
         new float[]{}
     );
-
+    long start = System.currentTimeMillis();
     Random rng = new Random(1000);
-    double[] values = new double[100000];
+    double[] values = new double[10000000];
     for (int i = 0; i < 100000; i++) {
       values[i] = (double) rng.nextInt(1000);
       h.add(values[i]);
     }
-
+    System.out.println(System.currentTimeMillis()-start +"ms");
     float[] quantiles = h.percentilesFloat(new double[]{12.5f, 25.0f, 50.0f, 98f});
 
     Assert.assertArrayEquals(

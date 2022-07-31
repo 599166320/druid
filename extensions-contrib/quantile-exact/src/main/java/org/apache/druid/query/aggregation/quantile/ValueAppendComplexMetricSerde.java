@@ -49,7 +49,8 @@ public class ValueAppendComplexMetricSerde extends ComplexMetricSerde
                     if (dimValues == null) {
                         return null;
                     }
-                    return Double.valueOf(dimValues.get(0).toString()).intValue();
+                    int v = Double.valueOf(dimValues.get(0).toString()).intValue();
+                    return v;
                 }
             }
         };

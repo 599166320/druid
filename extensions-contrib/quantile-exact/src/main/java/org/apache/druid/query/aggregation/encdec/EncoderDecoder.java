@@ -1,12 +1,24 @@
 package org.apache.druid.query.aggregation.encdec;
 
+import me.lemire.integercompression.differential.IntegratedIntCompressor;
 import net.jpountz.lz4.*;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-
 public class EncoderDecoder {
+
+    public static int[] intCompressed(int [] datas){
+        IntegratedIntCompressor iic = new IntegratedIntCompressor();
+        int[] compressed = iic.compress(datas);
+        return compressed;
+    }
+
+    public static int[] intDeCompressed(int [] compressed){
+        IntegratedIntCompressor iic = new IntegratedIntCompressor();
+        int[] recov = iic.uncompress(compressed); // equals to data
+        return recov;
+    }
+
 
     public static byte[] compressedByte(byte[] data) {
         final int decompressedLength = data.length;

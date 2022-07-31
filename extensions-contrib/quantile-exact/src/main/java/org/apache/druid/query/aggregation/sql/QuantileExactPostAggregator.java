@@ -68,6 +68,7 @@ public class QuantileExactPostAggregator implements PostAggregator {
         String [] funs = fun.split(",");
         double [] results = new double[funs.length];
         int i = 0;
+        List<Integer> sortKey = values.sortKey();
         for(String f : funs){
             if("max".equals(f)){
                 results[i] = values.max();
@@ -78,7 +79,7 @@ public class QuantileExactPostAggregator implements PostAggregator {
             }else if(f.startsWith("p")){
                 double p = Double.valueOf(f.replace("p",""));
                 int pidx = (int) (values.count()*p);
-                results[i] = values.get(pidx);
+                results[i] = values.get(pidx,sortKey);
             }
             i++;
         }

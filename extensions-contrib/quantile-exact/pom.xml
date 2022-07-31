@@ -75,7 +75,11 @@
         <artifactId>fastutil-core</artifactId>
         <scope>provided</scope>
     </dependency>
-
+    <dependency>
+        <groupId>me.lemire.integercompression</groupId>
+        <artifactId>JavaFastPFOR</artifactId>
+        <version>0.1.12</version>
+    </dependency>
     <!-- Tests -->
     <dependency>
         <groupId>org.apache.druid</groupId>
