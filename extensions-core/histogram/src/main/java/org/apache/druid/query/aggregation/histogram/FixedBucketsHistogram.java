@@ -140,8 +140,8 @@ public class FixedBucketsHistogram
    * - Compute percentiles
    * - Serialization
    */
-  @JsonIgnore
-  private final ReadWriteLock readWriteLock;
+  //@JsonIgnore
+  //private final ReadWriteLock readWriteLock;
 
   private double lowerLimit;
   private double upperLimit;
@@ -183,7 +183,7 @@ public class FixedBucketsHistogram
 
     this.histogram = new long[numBuckets];
     this.bucketSize = (upperLimit - lowerLimit) / numBuckets;
-    this.readWriteLock = new ReentrantReadWriteLock(true);
+    //this.readWriteLock = new ReentrantReadWriteLock(true);
 
     this.outlierHandler = makeOutlierHandler();
   }
@@ -216,7 +216,7 @@ public class FixedBucketsHistogram
     this.missingValueCount = missingValueCount;
 
     this.bucketSize = (upperLimit - lowerLimit) / numBuckets;
-    this.readWriteLock = new ReentrantReadWriteLock(true);
+    //this.readWriteLock = new ReentrantReadWriteLock(true);
     this.outlierHandler = makeOutlierHandler();
   }
 
@@ -376,10 +376,10 @@ public class FixedBucketsHistogram
     );
   }
 
-  public ReadWriteLock getReadWriteLock()
+  /*public ReadWriteLock getReadWriteLock()
   {
     return readWriteLock;
-  }
+  }*/
 
   /**
    * Add a value to the histogram, using the outlierHandler to account for outliers.
@@ -390,7 +390,7 @@ public class FixedBucketsHistogram
       double value
   )
   {
-    readWriteLock.writeLock().lock();
+    //readWriteLock.writeLock().lock();
 
     try {
       if (value < lowerLimit) {
@@ -419,7 +419,7 @@ public class FixedBucketsHistogram
       histogram[targetBucket] += 1;
     }
     finally {
-      readWriteLock.writeLock().unlock();
+      //readWriteLock.writeLock().unlock();
     }
   }
 
@@ -428,13 +428,13 @@ public class FixedBucketsHistogram
    */
   public void incrementMissing()
   {
-    readWriteLock.writeLock().lock();
+    //readWriteLock.writeLock().lock();
 
     try {
       missingValueCount++;
     }
     finally {
-      readWriteLock.writeLock().unlock();
+      //readWriteLock.writeLock().unlock();
     }
   }
 
@@ -484,8 +484,8 @@ public class FixedBucketsHistogram
       return;
     }
 
-    readWriteLock.writeLock().lock();
-    otherHistogram.getReadWriteLock().readLock().lock();
+    //readWriteLock.writeLock().lock();
+    //otherHistogram.getReadWriteLock().readLock().lock();
 
     try {
       missingValueCount += otherHistogram.getMissingValueCount();
@@ -499,8 +499,8 @@ public class FixedBucketsHistogram
       }
     }
     finally {
-      readWriteLock.writeLock().unlock();
-      otherHistogram.getReadWriteLock().readLock().unlock();
+      //readWriteLock.writeLock().unlock();
+      //otherHistogram.getReadWriteLock().readLock().unlock();
     }
   }
 
@@ -746,7 +746,7 @@ public class FixedBucketsHistogram
    */
   public float[] percentilesFloat(double[] pcts)
   {
-    readWriteLock.readLock().lock();
+    //readWriteLock.readLock().lock();
 
     try {
       float[] results = new float[pcts.length];
@@ -777,13 +777,13 @@ public class FixedBucketsHistogram
       return results;
     }
     finally {
-      readWriteLock.readLock().unlock();
+      //readWriteLock.readLock().unlock();
     }
   }
 
   public Double[] percentilesDouble(double[] pcts)
   {
-    readWriteLock.readLock().lock();
+    //readWriteLock.readLock().lock();
 
     try {
       Double[] results = new Double[pcts.length];
@@ -814,7 +814,7 @@ public class FixedBucketsHistogram
       return results;
     }
     finally {
-      readWriteLock.readLock().unlock();
+      //readWriteLock.readLock().unlock();
     }
   }
 
@@ -838,7 +838,7 @@ public class FixedBucketsHistogram
    */
   public byte[] toBytes()
   {
-    readWriteLock.readLock().lock();
+    //readWriteLock.readLock().lock();
 
     try {
       int nonEmptyBuckets = getNonEmptyBucketCount();
@@ -849,7 +849,7 @@ public class FixedBucketsHistogram
       }
     }
     finally {
-      readWriteLock.readLock().unlock();
+      //readWriteLock.readLock().unlock();
     }
   }
 
