@@ -1,6 +1,7 @@
 package org.apache.druid.query.aggregation.quantile;
 
 import org.apache.druid.data.input.InputRow;
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.query.aggregation.AggregatorFactory;
 import org.apache.druid.segment.GenericColumnSerializer;
 import org.apache.druid.segment.column.ColumnBuilder;
@@ -44,6 +45,8 @@ public class ValueAppendComplexMetricSerde extends ComplexMetricSerde
                 Object rawValue = inputRow.getRaw(metricName);
                 if (rawValue instanceof ValueCollection) {
                     return (ValueCollection) rawValue;
+                }else if (rawValue instanceof String) {
+                    return ValueCollection.deserialize(StringUtils.decodeBase64(StringUtils.toUtf8((String) rawValue)));
                 } else {
                     List<String> dimValues = inputRow.getDimension(metricName);
                     if (dimValues == null) {
