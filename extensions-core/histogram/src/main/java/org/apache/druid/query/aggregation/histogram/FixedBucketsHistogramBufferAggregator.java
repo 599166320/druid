@@ -19,16 +19,23 @@
 
 package org.apache.druid.query.aggregation.histogram;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
 
 import java.nio.ByteBuffer;
+import java.util.IdentityHashMap;
 
 public class FixedBucketsHistogramBufferAggregator implements BufferAggregator
 {
   private final BaseObjectColumnValueSelector selector;
-  private final FixedBucketsHistogramBufferAggregatorHelper innerAggregator;
+  private final IdentityHashMap<ByteBuffer, Int2ObjectMap<FixedBucketsHistogram>> cache = new IdentityHashMap();
+  private final double lowerLimit;
+  private final double upperLimit;
+  private final int numBuckets;
+  private final FixedBucketsHistogram.OutlierHandlingMode outlierHandlingMode;
 
   public FixedBucketsHistogramBufferAggregator(
       BaseObjectColumnValueSelector selector,
@@ -39,31 +46,38 @@ public class FixedBucketsHistogramBufferAggregator implements BufferAggregator
   )
   {
     this.selector = selector;
-    this.innerAggregator = new FixedBucketsHistogramBufferAggregatorHelper(
-        lowerLimit,
-        upperLimit,
-        numBuckets,
-        outlierHandlingMode
-    );
+    this.lowerLimit = lowerLimit;
+    this.upperLimit = upperLimit;
+    this.numBuckets = numBuckets;
+    this.outlierHandlingMode = outlierHandlingMode;
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    innerAggregator.init(buf, position);
+    FixedBucketsHistogram values = new FixedBucketsHistogram(
+            lowerLimit,
+            upperLimit,
+            numBuckets,
+            outlierHandlingMode
+    );
+    addToCache(buf,position,values);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
     Object val = selector.getObject();
-    innerAggregator.aggregate(buf, position, val);
+    Int2ObjectMap<FixedBucketsHistogram> int2ObjectMap = cache.get(buf);
+    FixedBucketsHistogram values  = int2ObjectMap.get(position);
+    values.combine(val);
   }
 
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return innerAggregator.get(buf, position);
+    FixedBucketsHistogram tmp = cache.get(buf).get(position);
+    return tmp;
   }
 
   @Override
@@ -87,12 +101,28 @@ public class FixedBucketsHistogramBufferAggregator implements BufferAggregator
   @Override
   public void close()
   {
-    // no resources to cleanup
+    cache.clear();
   }
 
   @Override
   public void inspectRuntimeShape(RuntimeShapeInspector inspector)
   {
     inspector.visit("selector", selector);
+  }
+  private void addToCache(final ByteBuffer buffer, final int position, final FixedBucketsHistogram values)
+  {
+    Int2ObjectMap<FixedBucketsHistogram> map = cache.computeIfAbsent(buffer, b -> new Int2ObjectOpenHashMap<>());
+    map.put(position, values);
+  }
+
+  @Override
+  public void relocate(int oldPosition, int newPosition, ByteBuffer oldBuffer, ByteBuffer newBuffer) {
+    FixedBucketsHistogram values = cache.get(oldBuffer).get(oldPosition);
+    addToCache(newBuffer, newPosition, values);
+    final Int2ObjectMap<FixedBucketsHistogram> map = cache.get(oldBuffer);
+    map.remove(oldPosition);
+    if (map.isEmpty()) {
+      cache.remove(oldBuffer);
+    }
   }
 }
