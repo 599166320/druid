@@ -846,9 +846,15 @@ public class Druids
           .limit(query.getScanRowsLimit())
           .filters(query.getFilter())
           .columns(query.getColumns())
+          .orderByColumns(query.getOrderByColumns())
           .legacy(query.isLegacy())
           .context(query.getContext())
           .order(query.getOrder());
+    }
+
+    private ScanQueryBuilder orderByColumns(List<String> orderByColumns) {
+      this.orderByColumns = orderByColumns;
+      return this;
     }
 
     public ScanQueryBuilder dataSource(String ds)

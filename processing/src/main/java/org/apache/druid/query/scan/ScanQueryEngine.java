@@ -21,8 +21,10 @@ package org.apache.druid.query.scan;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.apache.druid.collections.MultiColumnSorter;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -32,11 +34,9 @@ import org.apache.druid.java.util.common.guava.BaseSequence;
 import org.apache.druid.java.util.common.guava.Sequence;
 import org.apache.druid.java.util.common.guava.Sequences;
 import org.apache.druid.query.QueryContexts;
-import org.apache.druid.query.QueryMetrics;
 import org.apache.druid.query.QueryTimeoutException;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.filter.Filter;
-import org.apache.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.apache.druid.segment.*;
 import org.apache.druid.segment.column.ColumnHolder;
 import org.apache.druid.segment.filter.Filters;
@@ -123,10 +123,27 @@ public class ScanQueryEngine
     return getScanResultValueSequence(query, responseContext, legacy, hasTimeout, timeoutAt, start, adapter, allColumns, intervals, segmentId, filter, limit);
   }
   private Sequence<ScanResultValue> getScanOrderByResultValueSequence(ScanQuery query, ResponseContext responseContext, boolean legacy, boolean hasTimeout, long timeoutAt, long start, StorageAdapter adapter, List<String> allColumns, List<Interval> intervals, SegmentId segmentId, Filter filter) {
-    TreeMap<Object, Long> sortValueAndOffset = new TreeMap();
+
     List<String> sortColumns = query.getOrderByColumns();
     List<String> orderByDirection = (List<String>) query.getContext().get("orderByDirection");
-    final long limit  = query.getScanRowsLimit();
+    final int limit  = (int)query.getScanRowsLimit();
+    Comparator<MultiColumnSorter.MultiColumnSorterElement<Long>> comparator = new Comparator<MultiColumnSorter.MultiColumnSorterElement<Long>>() {
+      @Override
+      public int compare(MultiColumnSorter.MultiColumnSorterElement<Long> o1, MultiColumnSorter.MultiColumnSorterElement<Long> o2) {
+        for(int i = 0; i < o1.getOrderByColumValues().size() ; i++){
+          if(!o1.getOrderByColumValues().get(i).equals(o2.getOrderByColumValues().get(i))){
+            if(ScanQuery.Order.ASCENDING.equals(ScanQuery.Order.fromString(orderByDirection.get(i)))){
+              return o1.getOrderByColumValues().get(i).compareTo(o2.getOrderByColumValues().get(i));
+            }else{
+              return o2.getOrderByColumValues().get(i).compareTo(o1.getOrderByColumValues().get(i));
+            }
+          }
+        }
+        return 0;
+      }
+    };
+    MultiColumnSorter<Long> multiColumnSorter = new MultiColumnSorter<Long>(limit,comparator);
+
     Sequence<Cursor> cursorSequence = adapter.makeCursors(filter, intervals.get(0), query.getVirtualColumns(), Granularities.ALL, query.getOrder().equals(ScanQuery.Order.DESCENDING) || (query.getOrder().equals(ScanQuery.Order.NONE) && query.isDescending()), null);
     cursorSequence.toList().stream().map(cursor -> new BaseSequence<>(
             new BaseSequence.IteratorMaker<ScanResultValue, Iterator<ScanResultValue>>()
@@ -177,7 +194,7 @@ public class ScanQueryEngine
                               timeoutAt - (System.currentTimeMillis() - start)
                       );
                     }
-                    return new ScanResultValue(segmentId.toString(), allColumns, sortValueAndOffset);
+                    return new ScanResultValue(segmentId.toString(), allColumns, multiColumnSorter);
                   }
 
                   @Override
@@ -189,16 +206,8 @@ public class ScanQueryEngine
                   private void rowsToCompactedList()
                   {
                     while(!cursor.isDone()) {
-                      for(int j = 0; j < sortColumns.size(); ++j) {
-                        sortValueAndOffset.put(this.getColumnValue(j), this.offset);
-                        if(sortValueAndOffset.size() > limit){
-                          if (OrderByColumnSpec.Direction.fromString(orderByDirection.get(j)) == OrderByColumnSpec.Direction.DESCENDING) {
-                            sortValueAndOffset.remove(sortValueAndOffset.firstKey());
-                          }else {
-                            sortValueAndOffset.remove(sortValueAndOffset.lastKey());
-                          }
-                        }
-                      }
+                      List<Comparable> sortValues = sortColumns.stream().map(c->(Comparable)getColumnValue(sortColumns.indexOf(c))).collect(Collectors.toList());
+                      multiColumnSorter.add(this.offset,sortValues);
                       cursor.advance();
                       ++this.offset;
                     }
@@ -214,7 +223,6 @@ public class ScanQueryEngine
                     } else {
                       value = selector == null ? null : selector.getObject();
                     }
-
                     return value;
                   }
                 };
@@ -229,8 +237,8 @@ public class ScanQueryEngine
       s.toList();
     });
 
-    Set<Long> topKOffset = new HashSet(sortValueAndOffset.values());
-
+    final Set<Long> topKOffset = new HashSet<>(limit);
+    Iterators.addAll(topKOffset, multiColumnSorter.drain());
     return Sequences.concat(
             adapter
                     .makeCursors(

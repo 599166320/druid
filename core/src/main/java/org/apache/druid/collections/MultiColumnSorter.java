@@ -8,7 +8,7 @@ public class MultiColumnSorter<T> {
 
     private final MinMaxPriorityQueue<MultiColumnSorterElement<T>> queue;
 
-    public MultiColumnSorter(int limit,Comparator<MultiColumnSorterElement<T>> comparator,List<String> orderByDirection){
+    public MultiColumnSorter(int limit,Comparator<MultiColumnSorterElement<T>> comparator){
         this.queue = MinMaxPriorityQueue
                 .orderedBy(Ordering.from(comparator))
                 .maximumSize(limit)
@@ -51,15 +51,15 @@ public class MultiColumnSorter<T> {
     }
 
     @VisibleForTesting
-    static class MultiColumnSorterElement<T>
+    public static class MultiColumnSorterElement<T>
     {
         private final T element;
-        private final List<Comparable> orderByColums;
+        private final List<Comparable> orderByColumValues;
 
         public MultiColumnSorterElement(T element, List<Comparable> orderByColums)
         {
             this.element = element;
-            this.orderByColums = orderByColums;
+            this.orderByColumValues = orderByColums;
         }
 
         public T getElement()
@@ -67,9 +67,9 @@ public class MultiColumnSorter<T> {
             return element;
         }
 
-        public List<Comparable> getOrderByColums()
+        public List<Comparable> getOrderByColumValues()
         {
-            return orderByColums;
+            return orderByColumValues;
         }
 
         @Override
@@ -82,14 +82,14 @@ public class MultiColumnSorter<T> {
                 return false;
             }
             MultiColumnSorterElement<?> that = (MultiColumnSorterElement<?>) o;
-            return orderByColums == that.orderByColums &&
+            return orderByColumValues == that.orderByColumValues &&
                     Objects.equals(element, that.element);
         }
 
         @Override
         public int hashCode()
         {
-            return Objects.hash(element, orderByColums);
+            return Objects.hash(element, orderByColumValues);
         }
     }
 }
