@@ -1146,6 +1146,7 @@ public class DruidQuery1
         order,
         filtration.getDimFilter(),
         Ordering.natural().sortedCopy(columns),
+        new ArrayList<>(),
         false,
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
     );

@@ -93,7 +93,7 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
       final long timeoutAt = System.currentTimeMillis() + QueryContexts.getTimeout(queryPlus.getQuery());
       responseContext.put(ResponseContext.Key.TIMEOUT_AT, timeoutAt);
 
-      if(query.getContext().containsKey("limit") && query.getContext().containsKey("orderByColumn")){
+      if(query.getOrderByColumns() .size() > 0){
         try {
           return sort(
                   Sequences.concat(Sequences.map(
@@ -292,9 +292,9 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
   {
     // Converting the limit from long to int could theoretically throw an ArithmeticException but this branch
     // only runs if limit < MAX_LIMIT_FOR_IN_MEMORY_TIME_ORDERING (which should be < Integer.MAX_VALUE)
-    final int limit  = (int) scanQuery.getContext().get("limit");
+    final int limit  = (int) scanQuery.getScanRowsLimit();
     TreeMap<Object, ScanResultValue> sortValueAndScanResultValue = new TreeMap();
-    List<String> sortColumns = (List<String>) scanQuery.getContext().get("orderByColumn");
+    List<String> sortColumns = scanQuery.getOrderByColumns();
     List<String> orderByDirection = (List<String>) scanQuery.getContext().get("orderByDirection");
 
     Yielder<ScanResultValue> yielder = Yielders.each(inputSequence);

@@ -794,6 +794,7 @@ public class Druids
     private long limit;
     private DimFilter dimFilter;
     private List<String> columns;
+    private List<String> orderByColumns;
     private Boolean legacy;
     private ScanQuery.Order order;
 
@@ -809,6 +810,7 @@ public class Druids
       limit = 0;
       dimFilter = null;
       columns = new ArrayList<>();
+      orderByColumns = new ArrayList<>();
       legacy = null;
       order = null;
     }
@@ -826,6 +828,7 @@ public class Druids
           order,
           dimFilter,
           columns,
+          orderByColumns,
           legacy,
           context
       );

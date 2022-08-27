@@ -39,6 +39,7 @@
       <list>
         <option value="$PROJECT_DIR$/pom.xml" />
         <option value="$PROJECT_DIR$/extensions-contrib/quantile-exact/pom.xml" />
+        <option value="$PROJECT_DIR$/promql/pom.xml" />
       </list>
     </option>
   </component>

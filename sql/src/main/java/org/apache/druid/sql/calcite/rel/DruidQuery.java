@@ -92,6 +92,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * A fully formed Druid query, built from a {@link PartialDruidQuery}. The work to develop this query is done
@@ -1101,9 +1102,10 @@ public class DruidQuery
     final DataSource newDataSource = dataSourceFiltrationPair.lhs;
     final Filtration filtration = dataSourceFiltrationPair.rhs;
 
-    final ScanQuery.Order order;
+    ScanQuery.Order order = ScanQuery.Order.NONE;
     long scanOffset = 0L;
     long scanLimit = 0L;
+    List<String> orderByColumns = new ArrayList<>();
 
     if (sorting != null) {
       scanOffset = sorting.getOffsetLimit().getOffset();
@@ -1128,10 +1130,23 @@ public class DruidQuery
       } else if (sortKind == Sorting.SortKind.TIME_DESCENDING) {
         order = ScanQuery.Order.DESCENDING;
       } else {
-        assert sortKind == Sorting.SortKind.NON_TIME;
+        //assert sortKind == Sorting.SortKind.NON_TIME;
 
         // Scan cannot ORDER BY non-time columns.
-        return null;
+        //return null;
+        if(sorting.limitSpec() != null && sorting.limitSpec() instanceof DefaultLimitSpec){
+          DefaultLimitSpec limitSpec = (DefaultLimitSpec) sorting.limitSpec();
+          orderByColumns = limitSpec.getColumns().stream().map(d->d.getDimension()).collect(Collectors.toList());
+          List<String> orderByDirection = limitSpec.getColumns().stream().map(d->d.getDirection().toString()).collect(Collectors.toList());
+          int limit  = limitSpec.getLimit();
+          plannerContext.getQueryContext().put("orderByColumn",orderByColumns);
+          plannerContext.getQueryContext().put("orderByDirection",orderByDirection);
+          plannerContext.getQueryContext().put("limit",limit);
+          order = ScanQuery.Order.fromString(orderByDirection.stream().findFirst().get());
+          if(orderByColumns.size() == 0){
+            return null;
+          }
+        }
       }
     } else {
       order = ScanQuery.Order.NONE;
@@ -1155,6 +1170,7 @@ public class DruidQuery
         order,
         filtration.getDimFilter(),
         Ordering.natural().sortedCopy(columns),
+        orderByColumns,
         false,
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
     );

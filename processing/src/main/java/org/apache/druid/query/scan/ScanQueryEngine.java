@@ -117,16 +117,16 @@ public class ScanQueryEngine
 
     responseContext.add(ResponseContext.Key.NUM_SCANNED_ROWS, 0L);
     final long limit = calculateRemainingScanRowsLimit(query, responseContext);
-    if(query.getContext().containsKey("orderByColumn") && query.getContext().containsKey("orderByDirection") && query.getContext().containsKey("limit")){
+    if(query.getOrderByColumns().size() > 0 && query.getContext().containsKey("orderByDirection")){
       return getScanOrderByResultValueSequence(query, responseContext, legacy, hasTimeout, timeoutAt, start, adapter, allColumns, intervals, segmentId, filter);
     }
     return getScanResultValueSequence(query, responseContext, legacy, hasTimeout, timeoutAt, start, adapter, allColumns, intervals, segmentId, filter, limit);
   }
   private Sequence<ScanResultValue> getScanOrderByResultValueSequence(ScanQuery query, ResponseContext responseContext, boolean legacy, boolean hasTimeout, long timeoutAt, long start, StorageAdapter adapter, List<String> allColumns, List<Interval> intervals, SegmentId segmentId, Filter filter) {
     TreeMap<Object, Long> sortValueAndOffset = new TreeMap();
-    List<String> sortColumns = (List<String>) query.getContext().get("orderByColumn");
+    List<String> sortColumns = query.getOrderByColumns();
     List<String> orderByDirection = (List<String>) query.getContext().get("orderByDirection");
-    final int limit  = (int) query.getContext().get("limit");
+    final long limit  = query.getScanRowsLimit();
     Sequence<Cursor> cursorSequence = adapter.makeCursors(filter, intervals.get(0), query.getVirtualColumns(), Granularities.ALL, query.getOrder().equals(ScanQuery.Order.DESCENDING) || (query.getOrder().equals(ScanQuery.Order.NONE) && query.isDescending()), null);
     cursorSequence.toList().stream().map(cursor -> new BaseSequence<>(
             new BaseSequence.IteratorMaker<ScanResultValue, Iterator<ScanResultValue>>()
