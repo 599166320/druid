@@ -1106,6 +1106,7 @@ public class DruidQuery
     long scanOffset = 0L;
     long scanLimit = 0L;
     List<String> orderByColumns = new ArrayList<>();
+    List<String> orderByDirection = new ArrayList<>();
 
     if (sorting != null) {
       scanOffset = sorting.getOffsetLimit().getOffset();
@@ -1137,11 +1138,7 @@ public class DruidQuery
         if(sorting.limitSpec() != null && sorting.limitSpec() instanceof DefaultLimitSpec){
           DefaultLimitSpec limitSpec = (DefaultLimitSpec) sorting.limitSpec();
           orderByColumns = limitSpec.getColumns().stream().map(d->d.getDimension()).collect(Collectors.toList());
-          List<String> orderByDirection = limitSpec.getColumns().stream().map(d->d.getDirection().toString()).collect(Collectors.toList());
-          int limit  = limitSpec.getLimit();
-          plannerContext.getQueryContext().put("orderByColumn",orderByColumns);
-          plannerContext.getQueryContext().put("orderByDirection",orderByDirection);
-          plannerContext.getQueryContext().put("limit",limit);
+          orderByDirection = limitSpec.getColumns().stream().map(d->d.getDirection().toString()).collect(Collectors.toList());
           order = ScanQuery.Order.fromString(orderByDirection.stream().findFirst().get());
           if(orderByColumns.size() == 0){
             return null;
@@ -1171,6 +1168,7 @@ public class DruidQuery
         filtration.getDimFilter(),
         Ordering.natural().sortedCopy(columns),
         orderByColumns,
+        orderByDirection,
         false,
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
     );

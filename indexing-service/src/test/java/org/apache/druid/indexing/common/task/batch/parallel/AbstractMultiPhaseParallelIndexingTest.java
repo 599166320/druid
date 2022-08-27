@@ -278,6 +278,7 @@ abstract class AbstractMultiPhaseParallelIndexingTest extends AbstractParallelIn
                 null,
                 columns,
                 new ArrayList<>(),
+                new ArrayList<>(),
                 false,
                 null
             )

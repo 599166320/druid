@@ -120,6 +120,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   private final Integer maxRowsQueuedForOrdering;
   private final Integer maxSegmentPartitionsOrderedInMemory;
   private final List<String> orderByColumns;
+  private final List<String> orderByDirection;
 
   @JsonCreator
   public ScanQuery(
@@ -134,6 +135,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("orderByColumns") List<String> orderByColumns,
+      @JsonProperty("orderByDirection") List<String> orderByDirection,
       @JsonProperty("legacy") Boolean legacy,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -159,6 +161,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     this.dimFilter = dimFilter;
     this.columns = columns;
     this.orderByColumns = (orderByColumns == null) ? new ArrayList<>() : orderByColumns;
+    this.orderByDirection = (orderByDirection == null) ? new ArrayList<>() : orderByDirection;
     this.legacy = legacy;
     this.order = (order == null) ? Order.NONE : order;
     if (this.order != Order.NONE) {
@@ -294,6 +297,11 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return orderByColumns;
   }
 
+  @JsonProperty
+  public List<String> getOrderByDirection() {
+    return orderByDirection;
+  }
+
   /**
    * Compatibility mode with the legacy scan-query extension.
    */
@@ -389,7 +397,8 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
            Objects.equals(virtualColumns, scanQuery.virtualColumns) &&
            Objects.equals(resultFormat, scanQuery.resultFormat) &&
            Objects.equals(dimFilter, scanQuery.dimFilter) &&
-           Objects.equals(columns, scanQuery.columns);
+           Objects.equals(columns, scanQuery.columns) &&
+           Objects.equals(orderByColumns, scanQuery.orderByColumns);
   }
 
   @Override
@@ -404,6 +413,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
         scanRowsLimit,
         dimFilter,
         columns,
+        orderByColumns,
         legacy
     );
   }
@@ -421,6 +431,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
            ", limit=" + scanRowsLimit +
            ", dimFilter=" + dimFilter +
            ", columns=" + columns +
+           ", orderByColumns=" + orderByColumns +
            ", legacy=" + legacy +
            '}';
   }

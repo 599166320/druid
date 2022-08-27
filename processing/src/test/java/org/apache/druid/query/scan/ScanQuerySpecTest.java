@@ -75,6 +75,7 @@ public class ScanQuerySpecTest
         null,
         Arrays.asList("market", "quality", "index"),
         new ArrayList<>(),
+        new ArrayList<>(),
         null,
         null
     );
@@ -99,6 +100,7 @@ public class ScanQuerySpecTest
         ScanQuery.Order.NONE,
         null,
         Arrays.asList("market", "quality", "index"),
+        new ArrayList<>(),
         new ArrayList<>(),
         null,
         null

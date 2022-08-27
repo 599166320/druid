@@ -286,23 +286,28 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
   }
 
   Sequence<ScanResultValue> multiColumnSort(
-          Sequence<ScanResultValue> inputSequence,
-          ScanQuery scanQuery
+      Sequence<ScanResultValue> inputSequence,
+      ScanQuery scanQuery
   ) throws IOException
   {
     // Converting the limit from long to int could theoretically throw an ArithmeticException but this branch
     // only runs if limit < MAX_LIMIT_FOR_IN_MEMORY_TIME_ORDERING (which should be < Integer.MAX_VALUE)
-    final int limit  = (int) scanQuery.getScanRowsLimit();
+    final int limit = (int) scanQuery.getScanRowsLimit();
     List<String> sortColumns = scanQuery.getOrderByColumns();
-    List<String> orderByDirection = (List<String>) scanQuery.getContext().get("orderByDirection");
-    Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>> comparator = new Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>>() {
+    List<String> orderByDirection = scanQuery.getOrderByDirection();
+    Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>> comparator = new Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>>()
+    {
       @Override
-      public int compare(MultiColumnSorter.MultiColumnSorterElement<ScanResultValue> o1, MultiColumnSorter.MultiColumnSorterElement<ScanResultValue> o2) {
-        for(int i = 0; i < o1.getOrderByColumValues().size() ; i++){
-          if(!o1.getOrderByColumValues().get(i).equals(o2.getOrderByColumValues().get(i))){
-            if(ScanQuery.Order.ASCENDING.equals(ScanQuery.Order.fromString(orderByDirection.get(i)))){
+      public int compare(
+          MultiColumnSorter.MultiColumnSorterElement<ScanResultValue> o1,
+          MultiColumnSorter.MultiColumnSorterElement<ScanResultValue> o2
+      )
+      {
+        for (int i = 0; i < o1.getOrderByColumValues().size(); i++) {
+          if (!o1.getOrderByColumValues().get(i).equals(o2.getOrderByColumValues().get(i))) {
+            if (ScanQuery.Order.ASCENDING.equals(ScanQuery.Order.fromString(orderByDirection.get(i)))) {
               return o1.getOrderByColumValues().get(i).compareTo(o2.getOrderByColumValues().get(i));
-            }else{
+            } else {
               return o2.getOrderByColumValues().get(i).compareTo(o1.getOrderByColumValues().get(i));
             }
           }
@@ -310,7 +315,7 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
         return 0;
       }
     };
-    MultiColumnSorter<ScanResultValue> multiColumnSorter = new MultiColumnSorter<>(limit,comparator);
+    MultiColumnSorter<ScanResultValue> multiColumnSorter = new MultiColumnSorter<>(limit, comparator);
     Yielder<ScanResultValue> yielder = Yielders.each(inputSequence);
     try {
       boolean doneScanning = yielder.isDone();
@@ -321,11 +326,13 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
         for (ScanResultValue srv : singleEventScanResultValues) {
           // Using an intermediate unbatched ScanResultValue is not that great memory-wise, but the column list
           // needs to be preserved for queries using the compactedList result format
-          List<Integer> idxs = sortColumns.stream().map(c->srv.getColumns().indexOf(c)).collect(Collectors.toList());
-          List events = (List)(srv.getEvents());
-          for(Object event:events){
-            List<Comparable> sortValues = idxs.stream().map(idx->((List<Comparable>)event).get(idx)).collect(Collectors.toList());
-            multiColumnSorter.add(srv,sortValues);
+          List<Integer> idxs = sortColumns.stream().map(c -> srv.getColumns().indexOf(c)).collect(Collectors.toList());
+          List events = (List) (srv.getEvents());
+          for (Object event : events) {
+            List<Comparable> sortValues = idxs.stream()
+                                              .map(idx -> ((List<Comparable>) event).get(idx))
+                                              .collect(Collectors.toList());
+            multiColumnSorter.add(srv, sortValues);
           }
         }
         yielder = yielder.next(null);
@@ -334,7 +341,8 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
       final List<ScanResultValue> sortedElements = new ArrayList<>(limit);
       Iterators.addAll(sortedElements, multiColumnSorter.drain());
       return Sequences.simple(sortedElements);
-    }catch (Exception e){
+    }
+    catch (Exception e) {
       throw new ISE(e.getMessage());
     }
     finally {
