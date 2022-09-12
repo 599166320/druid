@@ -140,7 +140,7 @@ public class ScanQueryEngine
 
     List<String> sortColumns = query.getOrderByColumns();
     List<String> orderByDirection = query.getOrderByDirection();
-    final int limit = (int) query.getScanRowsLimit();
+    int limit = Math.toIntExact(query.getScanRowsLimit());
     Comparator<MultiColumnSorter.MultiColumnSorterElement<Long>> comparator = new Comparator<MultiColumnSorter.MultiColumnSorterElement<Long>>()
     {
       @Override
@@ -309,7 +309,7 @@ public class ScanQueryEngine
                       @Override
                       public boolean hasNext()
                       {
-                        return !cursor.isDone() && offset < limit;
+                        return !cursor.isDone();
                       }
 
                       @Override

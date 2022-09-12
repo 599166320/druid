@@ -34,7 +34,7 @@ public class ScanQueryOrderByLimitRowIterator extends ScanQueryLimitRowIterator
     if (ScanQuery.ResultFormat.RESULT_FORMAT_VALUE_VECTOR.equals(resultFormat)) {
       throw new UOE(ScanQuery.ResultFormat.RESULT_FORMAT_VALUE_VECTOR + " is not supported yet");
     }
-    final int limit = (int) query.getScanRowsLimit();
+    int limit = Math.toIntExact(query.getScanRowsLimit());
     List<String> sortColumns = query.getOrderByColumns();
     List<String> orderByDirection = query.getOrderByDirection();
     Comparator<MultiColumnSorter.MultiColumnSorterElement<Object>> comparator = new Comparator<MultiColumnSorter.MultiColumnSorterElement<Object>>()
@@ -48,9 +48,9 @@ public class ScanQueryOrderByLimitRowIterator extends ScanQueryLimitRowIterator
         for (int i = 0; i < o1.getOrderByColumValues().size(); i++) {
           if (!o1.getOrderByColumValues().get(i).equals(o2.getOrderByColumValues().get(i))) {
             if (ScanQuery.Order.ASCENDING.equals(ScanQuery.Order.fromString(orderByDirection.get(i)))) {
-              return o1.getOrderByColumValues().get(i).compareTo(o2.getOrderByColumValues().get(i));
+              return o1.getClass() == o2.getClass() ? o1.getOrderByColumValues().get(i).compareTo(o2.getOrderByColumValues().get(i)) : o1.getOrderByColumValues().get(i).toString().compareTo(o2.getOrderByColumValues().get(i).toString());
             } else {
-              return o2.getOrderByColumValues().get(i).compareTo(o1.getOrderByColumValues().get(i));
+              return o2.getClass() == o1.getClass() ? o2.getOrderByColumValues().get(i).compareTo(o1.getOrderByColumValues().get(i)) : o2.getOrderByColumValues().get(i).toString().compareTo(o1.getOrderByColumValues().get(i).toString());
             }
           }
         }

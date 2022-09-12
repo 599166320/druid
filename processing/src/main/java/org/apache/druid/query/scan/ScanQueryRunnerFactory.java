@@ -292,7 +292,7 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
   {
     // Converting the limit from long to int could theoretically throw an ArithmeticException but this branch
     // only runs if limit < MAX_LIMIT_FOR_IN_MEMORY_TIME_ORDERING (which should be < Integer.MAX_VALUE)
-    final int limit = (int) scanQuery.getScanRowsLimit();
+    int limit = Math.toIntExact(scanQuery.getScanRowsLimit());
     List<String> sortColumns = scanQuery.getOrderByColumns();
     List<String> orderByDirection = scanQuery.getOrderByDirection();
     Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>> comparator = new Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>>()
