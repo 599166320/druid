@@ -30,6 +30,8 @@ import org.apache.druid.server.coordinator.DruidCoordinator;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.ReplicationThrottler;
 import org.apache.druid.server.coordinator.rules.BroadcastDistributionRule;
+import org.apache.druid.server.coordinator.rules.DropRule;
+import org.apache.druid.server.coordinator.rules.ForeverDropRule;
 import org.apache.druid.server.coordinator.rules.Rule;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
@@ -128,8 +130,9 @@ public class RunRules implements CoordinatorDuty
       }
       List<Rule> rules = databaseRuleManager.getRulesWithDefault(segment.getDataSource());
       boolean foundMatchingRule = false;
-      for (Rule rule : rules) {
-        if (rule.appliesTo(segment, now)) {
+      final int ruleSize = rules.size();
+      for (int i = 0; i < ruleSize; i++) {
+        if (rules.get(i).appliesTo(segment, now)) {
           if (
               stats.getGlobalStat(
                   "totalNonPrimaryReplicantsLoaded") >= paramsWithReplicationManager.getCoordinatorDynamicConfig()
@@ -142,9 +145,17 @@ public class RunRules implements CoordinatorDuty
             );
             paramsWithReplicationManager.getReplicationManager().setLoadPrimaryReplicantsOnly(true);
           }
-          stats.accumulate(rule.run(coordinator, paramsWithReplicationManager, segment));
+          stats.accumulate(rules.get(i).run(coordinator, paramsWithReplicationManager, segment));
           foundMatchingRule = true;
           break;
+        }else{
+          if(ruleSize == i+1 && rules.get(i+1) instanceof ForeverDropRule){
+            //倒数第二个规则是loadRule,最后一个是dropRule
+            continue;
+          }else if ("basic_monitor".equals(segment.getDataSource()) || "middleware-monitor-metrics".equals(segment.getDataSource())) {
+            //只是删除本层次的副本而已，不会修改used字段
+            rules.get(i).dropAllExpireSegments(paramsWithReplicationManager,segment);
+          }
         }
       }
 
