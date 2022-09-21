@@ -60,8 +60,8 @@ public abstract class LoadRule implements Rule
   public final String NON_PRIMARY_ASSIGNED_COUNT = "totalNonPrimaryReplicantsLoaded";
   public static final String REQUIRED_CAPACITY = "requiredCapacity";
 
-  private final Object2IntMap<String> targetReplicants = new Object2IntOpenHashMap<>();
-  private final Object2IntMap<String> currentReplicants = new Object2IntOpenHashMap<>();
+  protected final Object2IntMap<String> targetReplicants = new Object2IntOpenHashMap<>();
+  protected final Object2IntMap<String> currentReplicants = new Object2IntOpenHashMap<>();
 
   // Cache to hold unused results from strategy call in assignPrimary
   private final Map<String, ServerHolder> strategyCache = new HashMap<>();
@@ -425,7 +425,7 @@ public abstract class LoadRule implements Rule
   /**
    * Returns true if at least one tier in target replica assignment exists in cluster but does not have enough replicas.
    */
-  private boolean loadingInProgress(final DruidCluster druidCluster)
+  protected boolean loadingInProgress(final DruidCluster druidCluster)
   {
     for (final Object2IntMap.Entry<String> entry : targetReplicants.object2IntEntrySet()) {
       final String tier = entry.getKey();
@@ -438,7 +438,7 @@ public abstract class LoadRule implements Rule
     return false;
   }
 
-  private static int dropForTier(
+  protected static int dropForTier(
       final int numToDrop,
       final NavigableSet<ServerHolder> holdersInTier,
       final DataSegment segment,
@@ -515,4 +515,47 @@ public abstract class LoadRule implements Rule
   public abstract Map<String, Integer> getTieredReplicants();
 
   public abstract int getNumReplicants(String tier);
+
+  protected String getReplicationLogString()
+  {
+    StringBuilder builder = new StringBuilder("Current replication: [");
+    for (final Object2IntMap.Entry<String> entry : currentReplicants.object2IntEntrySet()) {
+      final String tier = entry.getKey();
+      // [hot:1/2][cold:2/2]
+      builder.append("[")
+             .append(tier)
+             .append(":")
+             .append(entry.getIntValue())
+             .append("/")
+             .append(targetReplicants.getInt(tier))
+             .append("]");
+    }
+    return builder.append("]").toString();
+  }
+
+  protected String getCurrentReplicationLogString()
+  {
+    StringBuilder builder = new StringBuilder("Current replication: [");
+    for (final Object2IntMap.Entry<String> entry : currentReplicants.object2IntEntrySet()) {
+      builder.append("[")
+             .append(entry.getKey())
+             .append(":")
+             .append(entry.getIntValue())
+             .append("]");
+    }
+    return builder.append("]").toString();
+  }
+
+  protected String getTargetReplicationLogString()
+  {
+    StringBuilder builder = new StringBuilder("target replication: [");
+    for (final Object2IntMap.Entry<String> entry : targetReplicants.object2IntEntrySet()) {
+      builder.append("[")
+             .append(entry.getKey())
+             .append(":")
+             .append(entry.getIntValue())
+             .append("]");
+    }
+    return builder.append("]").toString();
+  }
 }
