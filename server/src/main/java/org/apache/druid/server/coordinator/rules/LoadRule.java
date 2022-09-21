@@ -532,4 +532,30 @@ public abstract class LoadRule implements Rule
     }
     return builder.append("]").toString();
   }
+
+  protected String getCurrentReplicationLogString()
+  {
+    StringBuilder builder = new StringBuilder("Current replication: [");
+    for (final Object2IntMap.Entry<String> entry : currentReplicants.object2IntEntrySet()) {
+      builder.append("[")
+             .append(entry.getKey())
+             .append(":")
+             .append(entry.getIntValue())
+             .append("]");
+    }
+    return builder.append("]").toString();
+  }
+
+  protected String getTargetReplicationLogString()
+  {
+    StringBuilder builder = new StringBuilder("target replication: [");
+    for (final Object2IntMap.Entry<String> entry : targetReplicants.object2IntEntrySet()) {
+      builder.append("[")
+             .append(entry.getKey())
+             .append(":")
+             .append(entry.getIntValue())
+             .append("]");
+    }
+    return builder.append("]").toString();
+  }
 }

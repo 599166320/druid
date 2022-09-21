@@ -116,15 +116,17 @@ public class PeriodLoadRule extends LoadRule
       targetReplicants.putAll(getTieredReplicants());
       currentReplicants.putAll(params.getSegmentReplicantLookup().getClusterTiers(segment.getId()));
       final CoordinatorStats stats = new CoordinatorStats();
-
       final DruidCluster druidCluster = params.getDruidCluster();
-      final boolean isLoading = loadingInProgress(druidCluster);
-
+      //final boolean isLoading = loadingInProgress(druidCluster);//如何避免查询出现断点,比如热节点删除数据，冷节点还没有加载完
+      //算法,1.冷节点已经加载完这个segment,才删除其他层的数据，这种是最完美的.2.延迟删除，比如丢在队列中，等一段时间再删除,4.使用beak决定rule是否终止。
+      //遍历当前segmentId对应的副本列表[{tier1:num1},{tier2:num2}]
       for (final Object2IntMap.Entry<String> entry : currentReplicants.object2IntEntrySet()) {
         final String tier = entry.getKey();
-
+        if(!targetReplicants.containsKey(tier) && targetReplicants.size() == 1){
+          //目标规则没有匹配的tier
+          continue;
+        }
         final NavigableSet<ServerHolder> holders = druidCluster.getHistoricalsByTier(tier);
-
         final int numDropped;
         if (holders == null) {
           log.makeAlert("No holders found for tier[%s]", tier).emit();
@@ -133,15 +135,14 @@ public class PeriodLoadRule extends LoadRule
           final int currentReplicantsInTier = entry.getIntValue();
           if (currentReplicantsInTier > 0) {
             // This enforces that loading is completed before we attempt to drop stuffs as a safety measure.
-            if (isLoading) {
-              log.info(
-                  "Loading in progress for segment [%s], skipping drop from tier [%s] until loading is complete! %s",
-                  segment.getId(),
-                  tier,
-                  getReplicationLogString()
-              );
-              break;
-            }
+            log.info(
+                "drop segment [%s], from tier [%s] ,CurrentReplication=[%s],TargetReplication=[%s]",
+                segment.getId(),
+                tier,
+                getCurrentReplicationLogString(),
+                getTargetReplicationLogString()
+            );
+
             numDropped = dropForTier(
                 currentReplicantsInTier,
                 holders,
@@ -152,10 +153,9 @@ public class PeriodLoadRule extends LoadRule
             numDropped = 0;
           }
         }
-
         stats.addToTieredStat(DROPPED_COUNT, tier, numDropped);
       }
-    }finally {
+    } finally {
       targetReplicants.clear();
       currentReplicants.clear();
     }
