@@ -180,6 +180,15 @@ public class ExprListenerImpl extends ExprBaseListener
   }
 
   @Override
+  public void exitTernaryExpr(ExprParser.TernaryExprContext ctx)
+  {
+    Expr logicalExpr = (Expr) nodes.get(ctx.getChild(0));
+    Expr firstExpr = (Expr) nodes.get(ctx.getChild(2));
+    Expr secondExpr = (Expr) nodes.get(ctx.getChild(4));
+    nodes.put(ctx, new TernaryExpr(logicalExpr,firstExpr,secondExpr));
+  }
+
+  @Override
   public void exitNestedExpr(ExprParser.NestedExprContext ctx)
   {
     nodes.put(ctx, nodes.get(ctx.getChild(1)));

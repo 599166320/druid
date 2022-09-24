@@ -3658,17 +3658,17 @@ public interface Function
       final ExprEval keyNameExprEval = args.get(2).eval(bindings);
       final String keyName = keyNameExprEval.asString();
       int i = -1;
-      Object[] keyArr  = keys.asArray();
-      if(keyArr != null && values != null){
-        for(int j = 0;j < keyArr.length ;j++){
-          if(Objects.equals(keyArr[j], keyName)){
+      Object[] keyArr = keys.asArray();
+      if (keyArr != null && values != null) {
+        for (int j = 0; j < keyArr.length; j++) {
+          if (Objects.equals(keyArr[j], keyName)) {
             i = j;
             break;
           }
         }
       }
 
-      if ( i== -1 ){
+      if (i == -1) {
         return ExprEval.of(null);
       }
       return ExprEval.of(values.asStringArray()[i]);
@@ -3680,7 +3680,7 @@ public interface Function
       if (args.size() != 3) {
         throw new IAE("Function[%s] needs 3 argument", name());
       }
-      return ImmutableSet.of(args.get(0),args.get(1));
+      return ImmutableSet.of(args.get(0), args.get(1));
     }
 
     @Override
