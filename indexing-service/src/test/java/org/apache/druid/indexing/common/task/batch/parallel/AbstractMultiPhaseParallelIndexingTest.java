@@ -66,10 +66,7 @@ import org.junit.Assert;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @SuppressWarnings("SameParameterValue")
 abstract class AbstractMultiPhaseParallelIndexingTest extends AbstractParallelIndexSupervisorTaskTest
@@ -280,6 +277,8 @@ abstract class AbstractMultiPhaseParallelIndexingTest extends AbstractParallelIn
                 null,
                 null,
                 columns,
+                new ArrayList<>(),
+                new ArrayList<>(),
                 false,
                 null
             )

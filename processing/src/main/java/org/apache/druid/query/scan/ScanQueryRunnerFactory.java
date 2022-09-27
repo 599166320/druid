@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import org.apache.druid.collections.MultiColumnSorter;
 import org.apache.druid.collections.StableLimitingSorter;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.JodaUtils;
@@ -50,11 +51,7 @@ import org.apache.druid.segment.Segment;
 import org.joda.time.Interval;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValue, ScanQuery>
@@ -96,6 +93,21 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
       final long timeoutAt = System.currentTimeMillis() + QueryContexts.getTimeout(queryPlus.getQuery());
       responseContext.put(ResponseContext.Key.TIMEOUT_AT, timeoutAt);
 
+      if(query.getOrderByColumns() .size() > 0){
+        try {
+          return multiColumnSort(
+                  Sequences.concat(Sequences.map(
+                          Sequences.simple(Lists.newArrayList(queryRunners)),
+                          input -> input.run(queryPlus, responseContext)
+                  )),
+                  query
+          );
+        }
+        catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
       if (query.getOrder().equals(ScanQuery.Order.NONE)) {
         // Use normal strategy
         Sequence<ScanResultValue> returnedRows = Sequences.concat(
@@ -135,7 +147,7 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
           catch (IOException e) {
             throw new RuntimeException(e);
           }
-        } else {
+        }else {
           // Use n-way merge strategy
           List<Pair<Interval, QueryRunner<ScanResultValue>>> intervalsAndRunnersOrdered = new ArrayList<>();
           if (intervalsOrdered.size() == queryRunnersOrdered.size()) {
@@ -174,17 +186,16 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
                                       : query.getMaxSegmentPartitionsOrderedInMemory();
           if (maxNumPartitionsInSegment <= maxSegmentPartitionsOrderedInMemory) {
             // Use n-way merge strategy
-
             // Create a list of grouped runner lists (i.e. each sublist/"runner group" corresponds to an interval) ->
             // there should be no interval overlap.  We create a list of lists so we can create a sequence of sequences.
             // There's no easy way to convert a LinkedHashMap to a sequence because it's non-iterable.
             List<List<QueryRunner<ScanResultValue>>> groupedRunners =
-                partitionsGroupedByInterval.entrySet()
+                partitionsGroupedByInterval.values()
                                            .stream()
-                                           .map(entry -> entry.getValue()
-                                                              .stream()
-                                                              .map(segQueryRunnerPair -> segQueryRunnerPair.rhs)
-                                                              .collect(Collectors.toList()))
+                                           .map(pairs -> pairs
+                                                   .stream()
+                                                   .map(segQueryRunnerPair -> segQueryRunnerPair.rhs)
+                                                   .collect(Collectors.toList()))
                                            .collect(Collectors.toList());
 
             return nWayMergeAndLimit(groupedRunners, queryPlus, responseContext);
@@ -273,6 +284,72 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
       yielder.close();
     }
   }
+
+  Sequence<ScanResultValue> multiColumnSort(
+      Sequence<ScanResultValue> inputSequence,
+      ScanQuery scanQuery
+  ) throws IOException
+  {
+    // Converting the limit from long to int could theoretically throw an ArithmeticException but this branch
+    // only runs if limit < MAX_LIMIT_FOR_IN_MEMORY_TIME_ORDERING (which should be < Integer.MAX_VALUE)
+    int limit = Math.toIntExact(scanQuery.getScanRowsLimit());
+    List<String> sortColumns = scanQuery.getOrderByColumns();
+    List<String> orderByDirection = scanQuery.getOrderByDirection();
+    Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>> comparator = new Comparator<MultiColumnSorter.MultiColumnSorterElement<ScanResultValue>>()
+    {
+      @Override
+      public int compare(
+          MultiColumnSorter.MultiColumnSorterElement<ScanResultValue> o1,
+          MultiColumnSorter.MultiColumnSorterElement<ScanResultValue> o2
+      )
+      {
+        for (int i = 0; i < o1.getOrderByColumValues().size(); i++) {
+          if (!o1.getOrderByColumValues().get(i).equals(o2.getOrderByColumValues().get(i))) {
+            if (ScanQuery.Order.ASCENDING.equals(ScanQuery.Order.fromString(orderByDirection.get(i)))) {
+              return o1.getOrderByColumValues().get(i).compareTo(o2.getOrderByColumValues().get(i));
+            } else {
+              return o2.getOrderByColumValues().get(i).compareTo(o1.getOrderByColumValues().get(i));
+            }
+          }
+        }
+        return 0;
+      }
+    };
+    MultiColumnSorter<ScanResultValue> multiColumnSorter = new MultiColumnSorter<>(limit, comparator);
+    Yielder<ScanResultValue> yielder = Yielders.each(inputSequence);
+    try {
+      boolean doneScanning = yielder.isDone();
+      // We need to scan limit elements and anything else in the last segment
+      while (!doneScanning) {
+        ScanResultValue next = yielder.get();
+        List<ScanResultValue> singleEventScanResultValues = next.toSingleEventScanResultValues();
+        for (ScanResultValue srv : singleEventScanResultValues) {
+          // Using an intermediate unbatched ScanResultValue is not that great memory-wise, but the column list
+          // needs to be preserved for queries using the compactedList result format
+          List<Integer> idxs = sortColumns.stream().map(c -> srv.getColumns().indexOf(c)).collect(Collectors.toList());
+          List events = (List) (srv.getEvents());
+          for (Object event : events) {
+            List<Comparable> sortValues = idxs.stream()
+                                              .map(idx -> ((List<Comparable>) event).get(idx))
+                                              .collect(Collectors.toList());
+            multiColumnSorter.add(srv, sortValues);
+          }
+        }
+        yielder = yielder.next(null);
+        doneScanning = yielder.isDone();
+      }
+      final List<ScanResultValue> sortedElements = new ArrayList<>(limit);
+      Iterators.addAll(sortedElements, multiColumnSorter.drain());
+      return Sequences.simple(sortedElements);
+    }
+    catch (Exception e) {
+      throw new ISE(e.getMessage());
+    }
+    finally {
+      yielder.close();
+    }
+  }
+
 
   @VisibleForTesting
   List<Interval> getIntervalsFromSpecificQuerySpec(QuerySegmentSpec spec)

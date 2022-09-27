@@ -93,7 +93,23 @@ public class ScanQueryQueryToolChest extends QueryToolChest<ScanResultValue, Sca
 
       final Sequence<ScanResultValue> results;
 
-      if (!queryToRun.isLimited()) {
+      if(queryToRun.scanOrderByNonTime()){
+        results = new BaseSequence<>(
+                new BaseSequence.IteratorMaker<ScanResultValue, ScanQueryLimitRowIterator>()
+                {
+                  @Override
+                  public ScanQueryLimitRowIterator make()
+                  {
+                    return new ScanQueryOrderByLimitRowIterator(runner, queryPlus.withQuery(queryToRun), responseContext);
+                  }
+
+                  @Override
+                  public void cleanup(ScanQueryLimitRowIterator iterFromMake)
+                  {
+                    CloseQuietly.close(iterFromMake);
+                  }
+                });
+      }else if (!queryToRun.isLimited()) {
         results = runner.run(queryPlus.withQuery(queryToRun), responseContext);
       } else {
         results = new BaseSequence<>(

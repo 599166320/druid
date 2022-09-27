@@ -30,6 +30,7 @@ import org.apache.druid.segment.VirtualColumns;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 public class ScanQuerySpecTest
@@ -73,6 +74,8 @@ public class ScanQuerySpecTest
         ScanQuery.Order.NONE,
         null,
         Arrays.asList("market", "quality", "index"),
+        new ArrayList<>(),
+        new ArrayList<>(),
         null,
         null
     );
@@ -97,6 +100,8 @@ public class ScanQuerySpecTest
         ScanQuery.Order.NONE,
         null,
         Arrays.asList("market", "quality", "index"),
+        new ArrayList<>(),
+        new ArrayList<>(),
         null,
         null
     );

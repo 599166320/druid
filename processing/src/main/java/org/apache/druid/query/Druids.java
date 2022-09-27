@@ -794,6 +794,8 @@ public class Druids
     private long limit;
     private DimFilter dimFilter;
     private List<String> columns;
+    private List<String> orderByColumns;
+    private List<String> orderByDirection;
     private Boolean legacy;
     private ScanQuery.Order order;
 
@@ -809,6 +811,8 @@ public class Druids
       limit = 0;
       dimFilter = null;
       columns = new ArrayList<>();
+      orderByColumns = new ArrayList<>();
+      orderByDirection = new ArrayList<>();
       legacy = null;
       order = null;
     }
@@ -826,6 +830,8 @@ public class Druids
           order,
           dimFilter,
           columns,
+          orderByColumns,
+          orderByDirection,
           legacy,
           context
       );
@@ -843,9 +849,22 @@ public class Druids
           .limit(query.getScanRowsLimit())
           .filters(query.getFilter())
           .columns(query.getColumns())
+          .orderByColumns(query.getOrderByColumns())
+          .orderByDirection(query.getOrderByDirection())
           .legacy(query.isLegacy())
           .context(query.getContext())
           .order(query.getOrder());
+    }
+
+    private ScanQueryBuilder orderByDirection(List<String> orderByDirection)
+    {
+      this.orderByDirection = orderByDirection;
+      return this;
+    }
+
+    private ScanQueryBuilder orderByColumns(List<String> orderByColumns) {
+      this.orderByColumns = orderByColumns;
+      return this;
     }
 
     public ScanQueryBuilder dataSource(String ds)

@@ -34,17 +34,13 @@ import org.apache.druid.query.Druids;
 import org.apache.druid.query.Queries;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.filter.DimFilter;
+import org.apache.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.apache.druid.query.spec.QuerySegmentSpec;
 import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnHolder;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 public class ScanQuery extends BaseQuery<ScanResultValue>
 {
@@ -123,6 +119,8 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   private final Order order;
   private final Integer maxRowsQueuedForOrdering;
   private final Integer maxSegmentPartitionsOrderedInMemory;
+  private final List<String> orderByColumns;
+  private final List<String> orderByDirection;
 
   @JsonCreator
   public ScanQuery(
@@ -136,6 +134,8 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
       @JsonProperty("order") Order order,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("columns") List<String> columns,
+      @JsonProperty("orderByColumns") List<String> orderByColumns,
+      @JsonProperty("orderByDirection") List<String> orderByDirection,
       @JsonProperty("legacy") Boolean legacy,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -160,6 +160,8 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     );
     this.dimFilter = dimFilter;
     this.columns = columns;
+    this.orderByColumns = (orderByColumns == null) ? new ArrayList<>() : orderByColumns;
+    this.orderByDirection = (orderByDirection == null) ? new ArrayList<>() : orderByDirection;
     this.legacy = legacy;
     this.order = (order == null) ? Order.NONE : order;
     if (this.order != Order.NONE) {
@@ -290,6 +292,16 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return columns;
   }
 
+  @JsonProperty
+  public List<String> getOrderByColumns() {
+    return orderByColumns;
+  }
+
+  @JsonProperty
+  public List<String> getOrderByDirection() {
+    return orderByDirection;
+  }
+
   /**
    * Compatibility mode with the legacy scan-query extension.
    */
@@ -365,6 +377,14 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     return Druids.ScanQueryBuilder.copy(this).context(computeOverriddenContext(getContext(), contextOverrides)).build();
   }
 
+  public boolean scanOrderByNonTime()
+  {
+    if (orderByColumns.size() > 1 || (orderByColumns.size() > 0 && !ColumnHolder.TIME_COLUMN_NAME.equals(orderByColumns.get(0)))) {
+      return true;
+    }
+    return false;
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -385,7 +405,8 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
            Objects.equals(virtualColumns, scanQuery.virtualColumns) &&
            Objects.equals(resultFormat, scanQuery.resultFormat) &&
            Objects.equals(dimFilter, scanQuery.dimFilter) &&
-           Objects.equals(columns, scanQuery.columns);
+           Objects.equals(columns, scanQuery.columns) &&
+           Objects.equals(orderByColumns, scanQuery.orderByColumns);
   }
 
   @Override
@@ -400,6 +421,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
         scanRowsLimit,
         dimFilter,
         columns,
+        orderByColumns,
         legacy
     );
   }
@@ -417,6 +439,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
            ", limit=" + scanRowsLimit +
            ", dimFilter=" + dimFilter +
            ", columns=" + columns +
+           ", orderByColumns=" + orderByColumns +
            ", legacy=" + legacy +
            '}';
   }
