@@ -93,7 +93,7 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
       final long timeoutAt = System.currentTimeMillis() + QueryContexts.getTimeout(queryPlus.getQuery());
       responseContext.put(ResponseContext.Key.TIMEOUT_AT, timeoutAt);
 
-      if(query.getOrderByColumns() .size() > 0){
+      if(query.scanOrderByNonTime()){
         try {
           return multiColumnSort(
                   Sequences.concat(Sequences.map(
@@ -290,6 +290,12 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
       ScanQuery scanQuery
   ) throws IOException
   {
+    if (scanQuery.getScanRowsLimit() > Integer.MAX_VALUE) {
+      throw new UOE(
+          "Limit of %,d rows not supported for priority queue strategy of non-time-ordering scan results",
+          scanQuery.getScanRowsLimit()
+      );
+    }
     // Converting the limit from long to int could theoretically throw an ArithmeticException but this branch
     // only runs if limit < MAX_LIMIT_FOR_IN_MEMORY_TIME_ORDERING (which should be < Integer.MAX_VALUE)
     int limit = Math.toIntExact(scanQuery.getScanRowsLimit());
@@ -329,9 +335,14 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
           List<Integer> idxs = sortColumns.stream().map(c -> srv.getColumns().indexOf(c)).collect(Collectors.toList());
           List events = (List) (srv.getEvents());
           for (Object event : events) {
-            List<Comparable> sortValues = idxs.stream()
-                                              .map(idx -> ((List<Comparable>) event).get(idx))
-                                              .collect(Collectors.toList());
+            List<Comparable> sortValues;
+            if (event instanceof LinkedHashMap) {
+              sortValues = sortColumns.stream().map(c -> ((LinkedHashMap<Object, Comparable>) event).get(c)).collect(Collectors.toList());
+            } else {
+              sortValues = idxs.stream()
+                               .map(idx -> ((List<Comparable>) event).get(idx))
+                               .collect(Collectors.toList());
+            }
             multiColumnSorter.add(srv, sortValues);
           }
         }
