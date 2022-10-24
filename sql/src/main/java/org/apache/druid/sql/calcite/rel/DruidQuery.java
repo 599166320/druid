@@ -1127,8 +1127,12 @@ public class DruidQuery
       if (sortKind == Sorting.SortKind.UNORDERED) {
         order = ScanQuery.Order.NONE;
       } else if (sortKind == Sorting.SortKind.TIME_ASCENDING) {
+        orderByColumns = ImmutableList.of(ColumnHolder.TIME_COLUMN_NAME);
+        orderByDirection = ImmutableList.of(ScanQuery.Order.ASCENDING.toString());
         order = ScanQuery.Order.ASCENDING;
       } else if (sortKind == Sorting.SortKind.TIME_DESCENDING) {
+        orderByColumns = ImmutableList.of(ColumnHolder.TIME_COLUMN_NAME);
+        orderByDirection = ImmutableList.of(ScanQuery.Order.DESCENDING.toString());
         order = ScanQuery.Order.DESCENDING;
       } else {
         //assert sortKind == Sorting.SortKind.NON_TIME;

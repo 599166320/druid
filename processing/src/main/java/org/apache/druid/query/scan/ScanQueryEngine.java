@@ -267,7 +267,7 @@ public class ScanQueryEngine
       s.toList();
     });
 
-    final Set<Long> topKOffset = new HashSet<>(limit);
+    final Set<Long> topKOffset = new HashSet<>();
     Iterators.addAll(topKOffset, multiColumnSorter.drain());
     return Sequences.concat(
         adapter

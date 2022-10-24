@@ -31,6 +31,7 @@ import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.Druids;
+import org.apache.druid.query.InlineDataSource;
 import org.apache.druid.query.Queries;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.filter.DimFilter;
@@ -153,7 +154,7 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
         this.scanRowsOffset >= 0,
         "offset must be greater than or equal to 0"
     );
-    this.scanRowsLimit = (scanRowsLimit == 0) ? Long.MAX_VALUE : scanRowsLimit;
+    this.scanRowsLimit = (scanRowsLimit == 0) ? (dataSource instanceof InlineDataSource ? Integer.MAX_VALUE : Long.MAX_VALUE) : scanRowsLimit;
     Preconditions.checkArgument(
         this.scanRowsLimit > 0,
         "limit must be greater than 0"
@@ -379,7 +380,12 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
 
   public boolean scanOrderByNonTime()
   {
-    if (orderByColumns.size() > 1 || (orderByColumns.size() > 0 && !ColumnHolder.TIME_COLUMN_NAME.equals(orderByColumns.get(0)))) {
+    if (orderByColumns.size() > 1 || (orderByColumns.size() == 1 && !ColumnHolder.TIME_COLUMN_NAME.equals(orderByColumns.get(0)))) {
+      //order by Ordinary field
+      return true;
+    }
+    if(orderByColumns.size() == 1 && getDataSource() instanceof InlineDataSource){
+      //the type of datasource is inlineDataSource and order by __time
       return true;
     }
     return false;
