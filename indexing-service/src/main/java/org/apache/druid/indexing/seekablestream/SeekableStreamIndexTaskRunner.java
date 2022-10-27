@@ -423,7 +423,7 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
         toolbox.getDruidNodeAnnouncer().announce(discoveryDruidNode);
       }
       appenderator = task.newAppenderator(toolbox, fireDepartmentMetrics, rowIngestionMeters, parseExceptionHandler);
-      driver = task.newDriver(appenderator, toolbox, fireDepartmentMetrics);
+      driver = task.newDriver(appenderator, toolbox, fireDepartmentMetrics, currOffsets.keySet());
 
       // Start up, set up initial sequences.
       final Object restoredMetadata = driver.startJob(
@@ -662,6 +662,9 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
                 );
 
                 if (addResult.isOk()) {
+                  //添加第一条的时候，发布patition信息
+                  updateShard(record, addResult);
+
                   // If the number of rows in the segment exceeds the threshold after adding a row,
                   // move the segment out from the active segments of BaseAppenderatorDriver to make a new segment.
                   final boolean isPushRequired = addResult.isPushRequired(
@@ -919,6 +922,14 @@ public abstract class SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOff
 
     toolbox.getTaskReportFileWriter().write(task.getId(), getTaskCompletionReports(null, handoffWaitMs));
     return TaskStatus.success(task.getId());
+  }
+
+  protected void updateShard(
+      OrderedPartitionableRecord<PartitionIdType, SequenceOffsetType, RecordType> record,
+      AppenderatorDriverAddResult addResult
+  )
+  {
+
   }
 
   private void checkPublishAndHandoffFailure() throws ExecutionException, InterruptedException

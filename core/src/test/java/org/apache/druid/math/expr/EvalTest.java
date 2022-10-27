@@ -79,6 +79,7 @@ public class EvalTest extends InitializedNullHandlingTest
   public void testDoubleEval()
   {
     Expr.ObjectBinding bindings = InputBindings.withMap(ImmutableMap.of("x", 2.0d));
+    Assert.assertEquals(2.0, evalDouble("1.0 > 0 ? 2.0 : 1.0", bindings), 0.0001);
     assertEquals(2.0, evalDouble("x", bindings), 0.0001);
     assertEquals(2.0, evalDouble("\"x\"", bindings), 0.0001);
     assertEquals(304.0, evalDouble("300 + \"x\" * 2", bindings), 0.0001);

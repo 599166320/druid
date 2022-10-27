@@ -20,6 +20,7 @@
 package org.apache.druid.indexing.kinesis.supervisor;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.kinesis.KinesisIndexTaskTuningConfig;
 import org.apache.druid.indexing.seekablestream.supervisor.SeekableStreamSupervisorTuningConfig;
 import org.apache.druid.segment.IndexSpec;
@@ -47,6 +48,7 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
   public static KinesisSupervisorTuningConfig defaultConfig()
   {
     return new KinesisSupervisorTuningConfig(
+        null,
         null,
         null,
         null,
@@ -118,7 +120,8 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
       @JsonProperty("repartitionTransitionDuration") Period repartitionTransitionDuration,
       @JsonProperty("offsetFetchPeriod") Period offsetFetchPeriod,
       @JsonProperty("useListShards") Boolean useListShards,
-      @JsonProperty("skipIgnorableShards") Boolean skipIgnorableShards
+      @JsonProperty("skipIgnorableShards") Boolean skipIgnorableShards,
+      @JsonProperty("otherConfig") @Nullable OtherConfig otherConfig
   )
   {
     super(
@@ -146,7 +149,8 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
         maxParseExceptions,
         maxSavedParseExceptions,
         maxRecordsPerPoll,
-        intermediateHandoffPeriod
+        intermediateHandoffPeriod,
+        otherConfig
     );
 
     this.workerThreads = workerThreads;
@@ -264,6 +268,7 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
            ", repartitionTransitionDuration=" + getRepartitionTransitionDuration() +
            ", useListShards=" + isUseListShards() +
            ", skipIgnorableShards=" + isSkipIgnorableShards() +
+           ", otherConfig=" + getOtherConfig() +
            '}';
   }
 
@@ -295,7 +300,8 @@ public class KinesisSupervisorTuningConfig extends KinesisIndexTaskTuningConfig
         getMaxParseExceptions(),
         getMaxSavedParseExceptions(),
         getMaxRecordsPerPoll(),
-        getIntermediateHandoffPeriod()
+        getIntermediateHandoffPeriod(),
+        getOtherConfig()
     );
   }
 }

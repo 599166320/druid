@@ -434,6 +434,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
 
       final Set<SegmentServerSelector> segments = new LinkedHashSet<>();
       final Map<String, Optional<RangeSet<String>>> dimensionRangeCache = new HashMap<>();
+      int original = 0;
       // Filter unneeded chunks based on partition dimension
       for (TimelineObjectHolder<String, ServerSelector> holder : serversLookup) {
         final Set<PartitionChunk<ServerSelector>> filteredChunks;
@@ -447,6 +448,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
         } else {
           filteredChunks = Sets.newHashSet(holder.getObject());
         }
+        original += Sets.newHashSet(holder.getObject()).size();
         for (PartitionChunk<ServerSelector> chunk : filteredChunks) {
           ServerSelector server = chunk.getObject();
           final SegmentDescriptor segment = new SegmentDescriptor(
@@ -457,6 +459,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
           segments.add(new SegmentServerSelector(server, segment));
         }
       }
+      log.debug("原本需要查询的segment数量是:" + original + ",结果优化之后，查询的segment数量是" + segments.size());
       return segments;
     }
 

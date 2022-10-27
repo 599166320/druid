@@ -27,6 +27,7 @@ import org.apache.druid.indexer.TaskInfo;
 import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.batch.parallel.LegacySinglePhaseSubTask;
 import org.apache.druid.indexing.common.task.batch.parallel.ParallelIndexSupervisorTask;
@@ -242,6 +243,11 @@ public interface Task
   {
     final ContextValueType value = getContextValue(key);
     return value == null ? defaultValue : value;
+  }
+
+  default OtherConfig otherConfig()
+  {
+    return new OtherConfig();
   }
 
   default TaskIdentifier getMetadata()

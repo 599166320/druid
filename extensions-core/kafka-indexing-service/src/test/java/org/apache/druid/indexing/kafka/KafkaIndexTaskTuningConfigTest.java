@@ -22,6 +22,7 @@ package org.apache.druid.indexing.kafka;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import nl.jqno.equalsverifier.EqualsVerifier;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.kafka.supervisor.KafkaSupervisorTuningConfig;
 import org.apache.druid.indexing.kafka.test.TestModifiedKafkaIndexTaskTuningConfig;
 import org.apache.druid.jackson.DefaultObjectMapper;
@@ -144,6 +145,7 @@ public class KafkaIndexTaskTuningConfigTest
         null,
         null,
         null,
+        null,
         null
     );
     KafkaIndexTaskTuningConfig copy = (KafkaIndexTaskTuningConfig) original.convertToTaskTuningConfig();
@@ -183,7 +185,8 @@ public class KafkaIndexTaskTuningConfigTest
         null,
         true,
         42,
-        42
+        42,
+            new OtherConfig()
     );
 
     String serialized = mapper.writeValueAsString(base);

@@ -34,6 +34,7 @@ import org.apache.druid.indexing.common.TaskLockType;
 import org.apache.druid.indexing.common.TaskToolbox;
 import org.apache.druid.indexing.common.actions.SegmentAllocateAction;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.AbstractTask;
 import org.apache.druid.indexing.common.task.TaskResource;
@@ -57,6 +58,8 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 import javax.annotation.Nullable;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 
 public abstract class SeekableStreamIndexTask<PartitionIdType, SequenceOffsetType, RecordType extends ByteEntity>
@@ -211,7 +214,8 @@ public abstract class SeekableStreamIndexTask<PartitionIdType, SequenceOffsetTyp
   public StreamAppenderatorDriver newDriver(
       final Appenderator appenderator,
       final TaskToolbox toolbox,
-      final FireDepartmentMetrics metrics
+      final FireDepartmentMetrics metrics,
+      final Set<PartitionIdType> partitionIdTypeSet
   )
   {
     return new StreamAppenderatorDriver(
@@ -280,5 +284,11 @@ public abstract class SeekableStreamIndexTask<PartitionIdType, SequenceOffsetTyp
   public SeekableStreamIndexTaskRunner<PartitionIdType, SequenceOffsetType, ?> getRunner()
   {
     return runnerSupplier.get();
+  }
+
+  @Override
+  public OtherConfig otherConfig()
+  {
+    return Objects.isNull(tuningConfig.getOtherConfig()) ? super.otherConfig() : tuningConfig.getOtherConfig();
   }
 }

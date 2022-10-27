@@ -39,6 +39,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
     @Type(name = HashBasedNumberedPartialShardSpec.TYPE, value = HashBasedNumberedPartialShardSpec.class),
     @Type(name = "single_dim", value = SingleDimensionPartialShardSpec.class),
     @Type(name = "numbered_overwrite", value = NumberedOverwritePartialShardSpec.class),
+    @Type(name = KafkaPartitionBasedNumberedPartialShardSpec.TYPE, value = KafkaPartitionBasedNumberedPartialShardSpec.class),
 })
 public interface PartialShardSpec
 {

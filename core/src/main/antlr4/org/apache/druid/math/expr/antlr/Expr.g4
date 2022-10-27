@@ -24,6 +24,7 @@ expr : NULL                                                         # null
      | expr ('+'|'-') expr                                          # addSubExpr
      | expr ('<'|'<='|'>'|'>='|'=='|'!=') expr                      # logicalOpExpr
      | expr ('&&'|'||') expr                                        # logicalAndOrExpr
+     | expr  ('?') expr ':' expr                                    # ternaryExpr
      | '(' expr ')'                                                 # nestedExpr
      | IDENTIFIER '(' lambda ',' fnArgs ')'                         # applyFunctionExpr
      | IDENTIFIER '(' fnArgs? ')'                                   # functionExpr
@@ -84,3 +85,5 @@ EQ : '==' ;
 NEQ : '!=' ;
 AND : '&&' ;
 OR : '||' ;
+QUESTION: '?' ;
+COLON: ':' ;

@@ -26,16 +26,33 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
+import org.apache.druid.indexing.appenderator.ActionBasedSegmentAllocator;
+import org.apache.druid.indexing.appenderator.ActionBasedUsedSegmentChecker;
+import org.apache.druid.indexing.common.TaskToolbox;
+import org.apache.druid.indexing.common.actions.SegmentAllocateAction;
 import org.apache.druid.indexing.common.task.TaskResource;
 import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTask;
 import org.apache.druid.indexing.seekablestream.SeekableStreamIndexTaskRunner;
+import org.apache.druid.java.util.common.StringUtils;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.segment.indexing.DataSchema;
+import org.apache.druid.segment.realtime.FireDepartmentMetrics;
+import org.apache.druid.segment.realtime.appenderator.Appenderator;
+import org.apache.druid.segment.realtime.appenderator.StreamAppenderatorDriver;
+import org.apache.druid.timeline.partition.KafkaPartitionBasedNumberedPartialShardSpec;
+import org.apache.druid.timeline.partition.KafkaPartitionNumberedShardSpec;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class KafkaIndexTask extends SeekableStreamIndexTask<Integer, Long, KafkaRecordEntity>
 {
+  private static final Logger log = new Logger(KafkaIndexTask.class);
+
   private static final String TYPE = "index_kafka";
 
   private final ObjectMapper configMapper;
@@ -136,5 +153,69 @@ public class KafkaIndexTask extends SeekableStreamIndexTask<Integer, Long, Kafka
   public boolean supportsQueries()
   {
     return true;
+  }
+
+  @Override
+  public StreamAppenderatorDriver newDriver(
+      final Appenderator appenderator,
+      final TaskToolbox toolbox,
+      final FireDepartmentMetrics metrics,
+      final Set<Integer> partitionIdTypeSet
+  )
+  {
+    if (!this.getIOConfig().getConsumerProperties().containsKey("partitionFunction")) {
+      return super.newDriver(appenderator, toolbox, metrics, partitionIdTypeSet);
+    }
+    String partitionFunctionBase64 = (String) this.getIOConfig().getConsumerProperties().get("partitionFunction");
+    String partitionFunction = new String(
+        StringUtils.decodeBase64String(partitionFunctionBase64),
+        StandardCharsets.UTF_8
+    );
+    log.info("partitionFunction is: [%s].", partitionFunction);
+    try {
+      KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf conf = KafkaPartitionNumberedShardSpec.MetricsRtCustomPartitionsConf.newMetricsRtCustomPartitionsConf(
+          partitionFunction);
+      Integer kafkaTotalPartition = conf.getPartitionNum();
+      Integer fixedPartitionEnd = conf.getCustomPartitionNum();
+
+      log.info("kafkaTotalPartition is: [%s].", kafkaTotalPartition);
+      log.info("fixedPartitionEnd is: [%s].", fixedPartitionEnd);
+      log.info("partitionDimensions is: [%s].", conf.getPartitionDimensions());
+      return new StreamAppenderatorDriver(
+          appenderator,
+          new ActionBasedSegmentAllocator(
+              toolbox.getTaskActionClient(),
+              dataSchema,
+              (schema, row, sequenceName, previousSegmentId, skipSegmentLineageCheck) -> new SegmentAllocateAction(
+                  schema.getDataSource(),
+                  row.getTimestamp(),
+                  schema.getGranularitySpec().getQueryGranularity(),
+                  schema.getGranularitySpec().getSegmentGranularity(),
+                  sequenceName,
+                  previousSegmentId,
+                  skipSegmentLineageCheck,
+                  new KafkaPartitionBasedNumberedPartialShardSpec(
+                      Arrays.asList(conf.getPartitionDimensions()
+                                        .split(",")),
+                      new HashSet<>(partitionIdTypeSet),
+                      kafkaTotalPartition,
+                      partitionFunction,
+                      fixedPartitionEnd
+                  ),
+                  lockGranularityToUse,
+                  super.lockTypeToUse
+              )
+          ),
+          toolbox.getSegmentHandoffNotifierFactory(),
+          new ActionBasedUsedSegmentChecker(toolbox.getTaskActionClient()),
+          toolbox.getDataSegmentKiller(),
+          toolbox.getJsonMapper(),
+          metrics
+      );
+    }
+    catch (Exception e) {
+      log.warn("反序列化MetricsRtCustomPartitionsConf失败:%s,error message is:%s.", partitionFunction, e.getMessage());
+      return super.newDriver(appenderator, toolbox, metrics, partitionIdTypeSet);
+    }
   }
 }

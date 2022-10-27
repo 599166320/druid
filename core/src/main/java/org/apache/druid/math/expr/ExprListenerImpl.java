@@ -95,7 +95,12 @@ public class ExprListenerImpl extends ExprBaseListener
 
     nodes.put(
         ctx,
-        new ApplyFunctionExpr(function, fnName, (LambdaExpr) nodes.get(ctx.lambda()), (List<Expr>) nodes.get(ctx.fnArgs()))
+        new ApplyFunctionExpr(
+            function,
+            fnName,
+            (LambdaExpr) nodes.get(ctx.lambda()),
+            (List<Expr>) nodes.get(ctx.fnArgs())
+        )
     );
   }
 
@@ -177,6 +182,15 @@ public class ExprListenerImpl extends ExprBaseListener
       default:
         throw new RE("Unrecognized binary operator %s", ctx.getChild(1).getText());
     }
+  }
+
+  @Override
+  public void exitTernaryExpr(ExprParser.TernaryExprContext ctx)
+  {
+    Expr logicalExpr = (Expr) nodes.get(ctx.getChild(0));
+    Expr firstExpr = (Expr) nodes.get(ctx.getChild(2));
+    Expr secondExpr = (Expr) nodes.get(ctx.getChild(4));
+    nodes.put(ctx, new TernaryExpr(logicalExpr, firstExpr, secondExpr));
   }
 
   @Override
