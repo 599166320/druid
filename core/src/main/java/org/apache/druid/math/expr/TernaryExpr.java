@@ -24,6 +24,7 @@ import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 
 import javax.annotation.Nullable;
+import java.util.Objects;
 
 class TernaryExpr implements Expr
 {
@@ -89,5 +90,26 @@ class TernaryExpr implements Expr
       throw new IAE("The return values of the first and second expressions must be the same.");
     }
     return firstExprType;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    TernaryExpr that = (TernaryExpr) o;
+    return logicalExpr.equals(that.logicalExpr)
+           && firstExpr.equals(that.firstExpr)
+           && secondExpr.equals(that.secondExpr);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(logicalExpr, firstExpr, secondExpr);
   }
 }

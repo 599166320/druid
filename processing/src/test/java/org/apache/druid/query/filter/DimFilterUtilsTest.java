@@ -107,6 +107,9 @@ public class DimFilterUtilsTest
     EasyMock.expect(shard.possibleInDomain(EasyMock.anyObject()))
             .andReturn(contained)
             .anyTimes();
+    EasyMock.expect(shard.checkForcePartition())
+        .andReturn(false)
+        .anyTimes();
     return shard;
   }
 }
