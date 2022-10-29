@@ -97,7 +97,14 @@ public class PrometheusEmitter implements Emitter
       }
       exec = ScheduledExecutors.fixed(1, "PrometheusPushGatewayEmitter-%s");
       exec.scheduleAtFixedRate(
-          () -> flush(),
+          () -> {
+            try {
+              flush();
+            }
+            catch (Exception e) {
+              log.error(e, "Unable to flush prometheus metrics to pushGateway");
+            }
+          },
           config.getFlushPeriod(),
           config.getFlushPeriod(),
           TimeUnit.SECONDS
