@@ -152,7 +152,7 @@ public class RunRules implements CoordinatorDuty
           if(ruleSize == i+1 && rules.get(i+1) instanceof ForeverDropRule){
             //倒数第二个规则是loadRule,最后一个是dropRule
             continue;
-          }else {
+          }else if ("basic_monitor".equals(segment.getDataSource()) || "middleware-monitor-metrics".equals(segment.getDataSource()) || "metrics_agg1m_bak_03".equals(segment.getDataSource()) || "tracing_normal".equals(segment.getDataSource())) {
             //只是删除本层次的副本而已，不会修改used字段
             rules.get(i).dropAllExpireSegments(paramsWithReplicationManager,segment);
           }
