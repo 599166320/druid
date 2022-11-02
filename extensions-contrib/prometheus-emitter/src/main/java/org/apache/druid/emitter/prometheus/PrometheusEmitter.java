@@ -39,6 +39,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -57,8 +58,8 @@ public class PrometheusEmitter implements Emitter
   private static final String TAG_HOSTNAME = "host_name";
   private static final String TAG_SERVICE = "druid_service";
 
-  private HTTPServer server;
-  private PushGateway pushGateway;
+  private volatile HTTPServer server;
+  private volatile PushGateway pushGateway;
   private volatile String identifier;
   private ScheduledExecutorService exec;
 
@@ -179,9 +180,6 @@ public class PrometheusEmitter implements Emitter
 
   private void pushMetric()
   {
-    if (StringUtils.isEmpty(identifier)) {
-      return;
-    }
     Map<String, DimensionsAndCollector> map = metrics.getRegisteredMetrics();
     CollectorRegistry metrics = new CollectorRegistry();
     if (config.getNamespace() != null) {
@@ -211,7 +209,7 @@ public class PrometheusEmitter implements Emitter
   @Override
   public void flush()
   {
-    if (pushGateway != null) {
+    if (pushGateway != null && identifier != null) {
       pushMetric();
     }
   }
