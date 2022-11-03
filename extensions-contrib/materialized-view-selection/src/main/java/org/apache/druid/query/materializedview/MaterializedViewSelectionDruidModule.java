@@ -30,6 +30,7 @@ import org.apache.druid.guice.DruidBinders;
 import org.apache.druid.guice.JsonConfigProvider;
 import org.apache.druid.guice.LifecycleModule;
 import org.apache.druid.guice.annotations.LoadScope;
+import org.apache.druid.indexing.materializedview.DerivativeDataSourceMetadata;
 import org.apache.druid.initialization.DruidModule;
 import org.apache.druid.server.metrics.MetricsModule;
 
@@ -44,7 +45,10 @@ public class MaterializedViewSelectionDruidModule implements DruidModule
     return ImmutableList.of(
         new SimpleModule(getClass().getSimpleName())
             .registerSubtypes(
-                new NamedType(MaterializedViewQuery.class, MaterializedViewQuery.TYPE))
+                new NamedType(MaterializedViewQuery.class, MaterializedViewQuery.TYPE),
+                new NamedType(DerivativeDataSourceMetadata.class, "derivativeDataSource")
+                )
+
     );
   }
   
