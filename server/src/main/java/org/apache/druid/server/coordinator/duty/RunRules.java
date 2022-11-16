@@ -19,6 +19,8 @@
 
 package org.apache.druid.server.coordinator.duty;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Lists;
 import org.apache.druid.client.ImmutableDruidDataSource;
 import org.apache.druid.java.util.common.DateTimes;
@@ -40,6 +42,9 @@ import org.joda.time.DateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -47,6 +52,10 @@ public class RunRules implements CoordinatorDuty
 {
   private static final EmittingLogger log = new EmittingLogger(RunRules.class);
   private static final int MAX_MISSING_RULES = 10;
+
+  public static final Cache<String, AtomicLong> MAX_DROP_RULE_CACHE = Caffeine.newBuilder().initialCapacity(5).build();
+
+  public static final AtomicLong DEFAULT_DROP_NUM = new AtomicLong(0);
 
   private final ReplicationThrottler replicatorThrottler;
 
@@ -152,10 +161,7 @@ public class RunRules implements CoordinatorDuty
           if (ruleSize == i + 1 && rules.get(i + 1) instanceof ForeverDropRule) {
             //倒数第二个规则是loadRule,最后一个是dropRule
             continue;
-          } else if ("basic_monitor".equals(segment.getDataSource())
-                     || "middleware-monitor-metrics".equals(segment.getDataSource())
-                     || "metrics_agg1m_bak_03".equals(segment.getDataSource())
-                     || "tracing_normal".equals(segment.getDataSource())) {
+          } else if (MAX_DROP_RULE_CACHE.get(segment.getDataSource(),o-> DEFAULT_DROP_NUM).decrementAndGet() > 0) {
             //只是删除本层次的副本而已，不会修改used字段
             rules.get(i).dropAllExpireSegments(paramsWithReplicationManager, segment);
           }

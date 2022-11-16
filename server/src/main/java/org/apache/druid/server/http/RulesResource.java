@@ -27,6 +27,7 @@ import org.apache.druid.audit.AuditInfo;
 import org.apache.druid.audit.AuditManager;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.metadata.MetadataRuleManager;
+import org.apache.druid.server.coordinator.duty.RunRules;
 import org.apache.druid.server.coordinator.rules.Rule;
 import org.apache.druid.server.http.security.RulesResourceFilter;
 import org.apache.druid.server.http.security.StateResourceFilter;
@@ -46,6 +47,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -172,6 +175,73 @@ public class RulesResource
       return auditManager.fetchAuditHistory(dataSourceName, "rules", theInterval);
     }
     return auditManager.fetchAuditHistory("rules", theInterval);
+  }
+
+  @POST
+  @Path("/update/datasourceMaxDropNumMap")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ResourceFilters(RulesResourceFilter.class)
+  public Response setMaxDropSegmentNum(
+      final Map<String, Long> datasourceMaxDropNumMap,
+      @HeaderParam(AuditManager.X_DRUID_AUTHOR) @DefaultValue("") final String author,
+      @HeaderParam(AuditManager.X_DRUID_COMMENT) @DefaultValue("") final String comment,
+      @Context HttpServletRequest req
+  )
+  {
+    for (Map.Entry<String, Long> e : datasourceMaxDropNumMap.entrySet()){
+      RunRules.MAX_DROP_RULE_CACHE.put(e.getKey(), new AtomicLong(e.getValue()));
+    }
+    return Response.ok().build();
+  }
+
+  @POST
+  @Path("/delete/datasourceMaxDropNumMap")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @ResourceFilters(RulesResourceFilter.class)
+  public Response deleteMaxDropSegmentNum(
+      final List<String> datasources,
+      @HeaderParam(AuditManager.X_DRUID_AUTHOR) @DefaultValue("") final String author,
+      @HeaderParam(AuditManager.X_DRUID_COMMENT) @DefaultValue("") final String comment,
+      @Context HttpServletRequest req
+  )
+  {
+    for (String ds : datasources){
+      RunRules.MAX_DROP_RULE_CACHE.invalidate(ds);
+    }
+    return Response.ok().build();
+  }
+
+  @GET
+  @Path("/get/datasourceMaxDropNumMap")
+  @Produces(MediaType.APPLICATION_JSON)
+  @ResourceFilters(StateResourceFilter.class)
+  public Response getAllMaxDropSegmentNum(
+  )
+  {
+    return Response.ok(RunRules.MAX_DROP_RULE_CACHE.asMap()).build();
+  }
+
+
+  @GET
+  @Path("/cleanup/datasourceMaxDropNumMap")
+  @Produces(MediaType.APPLICATION_JSON)
+  @ResourceFilters(StateResourceFilter.class)
+  public Response cleanupMaxDropSegmentNum(
+  )
+  {
+    RunRules.MAX_DROP_RULE_CACHE.invalidateAll();
+    return Response.ok().build();
+  }
+
+  @GET
+  @Path("/decrementAndGet/datasourceMaxDropNumMap/{dataSourceName}")
+  @Produces(MediaType.APPLICATION_JSON)
+  @ResourceFilters(StateResourceFilter.class)
+  public Response decrementAndGet(
+      @PathParam("dataSourceName") final String dataSourceName
+  )
+  {
+    return Response.ok(RunRules.MAX_DROP_RULE_CACHE.get(dataSourceName,o-> RunRules.DEFAULT_DROP_NUM).decrementAndGet()).build();
   }
 
 }
