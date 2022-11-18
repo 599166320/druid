@@ -74,7 +74,7 @@ public class ScanQueryEngine
   )
   {
     QueryableIndex queryableIndex = segment.asQueryableIndex();
-    if (!query.canPushSort() && Objects.nonNull(queryableIndex)) {
+    if (!query.canPushSort() && Objects.nonNull(queryableIndex) && "true".equals(query.getContext().getOrDefault("queryableIndexOrderbyRunner", "false"))) {
       return new QueryableIndexOrderbyRunner().process(query, segment, responseContext, queryMetrics, queryableIndex);
     }
 
