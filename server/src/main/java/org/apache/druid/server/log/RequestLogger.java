@@ -22,6 +22,7 @@ package org.apache.druid.server.log;
 import org.apache.druid.server.RequestLogLine;
 
 import java.io.IOException;
+import java.util.Properties;
 
 /**
  */
@@ -37,5 +38,10 @@ public interface RequestLogger
 
   default void stop()
   {
+  }
+
+  default Properties getLoggerProperties()
+  {
+    return new Properties();
   }
 }

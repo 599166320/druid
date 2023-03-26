@@ -20,6 +20,7 @@
 package org.apache.druid.sql;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import org.apache.druid.guice.LazySingleton;
 import org.apache.druid.server.security.ResourceAction;
@@ -27,9 +28,11 @@ import org.apache.druid.server.security.ResourceAction;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class manages only <i>authorized</i> {@link DirectStatement}s submitted via
@@ -61,8 +64,11 @@ public class SqlLifecycleManager
   @GuardedBy("lock")
   private final Map<String, List<Cancelable>> sqlLifecycles = new HashMap<>();
 
+  private final Map<String, Long> sqlTimes = new ConcurrentHashMap<>();
+
   public void add(String sqlQueryId, Cancelable lifecycle)
   {
+    sqlTimes.put(sqlQueryId, System.currentTimeMillis());
     synchronized (lock) {
       sqlLifecycles.computeIfAbsent(sqlQueryId, k -> new ArrayList<>())
                    .add(lifecycle);
@@ -75,6 +81,7 @@ public class SqlLifecycleManager
    */
   public void remove(String sqlQueryId, Cancelable lifecycle)
   {
+    sqlTimes.remove(sqlQueryId);
     synchronized (lock) {
       List<Cancelable> lifecycles = sqlLifecycles.get(sqlQueryId);
       if (lifecycles != null) {
@@ -92,6 +99,7 @@ public class SqlLifecycleManager
    */
   public void removeAll(String sqlQueryId, List<Cancelable> lifecyclesToRemove)
   {
+    sqlTimes.clear();
     synchronized (lock) {
       List<Cancelable> lifecycles = sqlLifecycles.get(sqlQueryId);
       if (lifecycles != null) {
@@ -112,5 +120,10 @@ public class SqlLifecycleManager
       List<Cancelable> lifecycles = sqlLifecycles.get(sqlQueryId);
       return lifecycles == null ? Collections.emptyList() : ImmutableList.copyOf(lifecycles);
     }
+  }
+
+  public Map<String, Long> getAllQueryIds()
+  {
+    return ImmutableMap.copyOf(sqlTimes);
   }
 }
