@@ -223,7 +223,8 @@ public class RetryQueryRunner<T> implements QueryRunner<T>
         if (missingSegments.isEmpty()) {
           return false;
         } else if (retryCount >= maxNumRetries) {
-          if (!QueryContexts.allowReturnPartialResults(queryPlus.getQuery(), config.isReturnPartialResults())) {
+          //if (!QueryContexts.allowReturnPartialResults(queryPlus.getQuery(), config.isReturnPartialResults())) {
+          if (!QueryContexts.allowReturnPartialResults(queryPlus.getQuery(), true)) {
             throw new SegmentMissingException("No results found for segments[%s]", missingSegments);
           } else {
             return false;
