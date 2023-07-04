@@ -1,15 +1,49 @@
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
 package org.apache.druid.sql.http;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
+import java.io.InputStreamReader;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.druid.guice.annotations.Json;
+import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.server.http.security.RulesResourceFilter;
 import org.apache.druid.server.log.RequestLogger;
@@ -19,39 +53,15 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FilenameFilter;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
 @Path("/druid/v2/query/")
 public class QueryLogResource
 {
-
   private static final Logger log = new Logger(QueryLogResource.class);
   private final ObjectMapper jsonMapper;
   private final SqlLifecycleManager sqlLifecycleManager;
   private String requestLoggerBaseDir;
-  private final static DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
-  private final static DateTimeZone dateTimeZone = DateTimeZone.forTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+  private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+  private static final DateTimeZone dateTimeZone = DateTimeZone.forTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
 
   @Inject
   public QueryLogResource(
@@ -67,48 +77,47 @@ public class QueryLogResource
 
   @GET
   @Path("/getAllQueryIds")
-  @Consumes(MediaType.APPLICATION_JSON)
-  @ResourceFilters(RulesResourceFilter.class)
+  @Consumes({"application/json"})
+  @ResourceFilters({RulesResourceFilter.class})
   public Response getAllQueryIds() throws JsonProcessingException
   {
-    Map<String, Long> queryIds = sqlLifecycleManager.getAllQueryIds();
+    Map<String, Long> queryIds = this.sqlLifecycleManager.getAllQueryIds();
     queryIds = sortMapByValues(queryIds);
-    Map<String, String> queryTimes = new HashMap<>();
+    Map<String, String> queryTimes = new HashMap();
+    Iterator var3 = queryIds.entrySet().iterator();
 
-    for (Map.Entry<String, Long> e : queryIds.entrySet()) {
+    while (var3.hasNext()) {
+      Entry<String, Long> e = (Entry) var3.next();
       DateTime t = new DateTime(e.getValue());
       queryTimes.put(e.getKey(), DATE_TIME_FORMAT.print(t.withZone(dateTimeZone)));
     }
 
     return Response.status(200)
                    .type(MediaType.APPLICATION_JSON_TYPE)
-                   .entity(
-                       jsonMapper.writeValueAsBytes(
-                           queryTimes
-                       )
-                   )
+                   .entity(this.jsonMapper.writeValueAsBytes(queryTimes))
                    .build();
   }
 
   public static <K extends Comparable, V extends Comparable> Map<K, V> sortMapByValues(Map<K, V> map)
   {
-    HashMap<K, V> finalMap = new LinkedHashMap<K, V>();
-    List<Map.Entry<K, V>> list = map.entrySet()
-                                    .stream()
-                                    .sorted((p2, p1) -> p1.getValue().compareTo(p2.getValue()))
-                                    .collect(Collectors.toList());
-    list.forEach(ele -> finalMap.put(ele.getKey(), ele.getValue()));
+    HashMap<K, V> finalMap = new LinkedHashMap();
+    List<Entry<K, V>> list = (List) map.entrySet().stream().sorted((p2, p1) -> {
+      return ((Comparable) p1.getValue()).compareTo(p2.getValue());
+    }).collect(Collectors.toList());
+    list.forEach((ele) -> {
+      Comparable var10000 = (Comparable) finalMap.put(ele.getKey(), ele.getValue());
+    });
     return finalMap;
   }
 
   @GET
   @Path("/getSql/{id}")
-  @Consumes(MediaType.APPLICATION_JSON)
-  @ResourceFilters(RulesResourceFilter.class)
+  @Consumes({"application/json"})
+  @ResourceFilters({RulesResourceFilter.class})
   public Response getSqlById(@PathParam("id") String sqlQueryId) throws JsonProcessingException
   {
-    Pattern p = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}.log");
-    File[] files = new File(requestLoggerBaseDir).listFiles(new FilenameFilter()
+    final Pattern p = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}.log");
+    File[] files = (new File(this.requestLoggerBaseDir)).listFiles(new FilenameFilter()
     {
       @Override
       public boolean accept(File dir, String name)
@@ -117,22 +126,53 @@ public class QueryLogResource
         return m.matches();
       }
     });
+    List<String> sqlInfos = new ArrayList();
+    File[] var5 = files;
+    int var6 = files.length;
 
-    List<String> sqlInfos = new ArrayList<>();
-    for (File file : files) {
-      try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
-        String tmp;
-        while ((tmp = br.readLine()) != null) {
-          if (tmp.contains(sqlQueryId)) {
-            sqlInfos.add(tmp);
-            if (sqlInfos.size() >= 2) {
-              break;
+    for (int var7 = 0; var7 < var6; ++var7) {
+      File file = var5[var7];
+
+      try {
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        Throwable var10 = null;
+
+        try {
+          String tmp;
+          try {
+            while ((tmp = br.readLine()) != null) {
+              if (tmp.contains(sqlQueryId)) {
+                sqlInfos.add(tmp);
+                if (sqlInfos.size() >= 2) {
+                  break;
+                }
+              }
             }
           }
+          catch (Throwable var20) {
+            var10 = var20;
+            throw var20;
+          }
+        }
+        finally {
+          if (br != null) {
+            if (var10 != null) {
+              try {
+                br.close();
+              }
+              catch (Throwable var19) {
+                var10.addSuppressed(var19);
+              }
+            } else {
+              br.close();
+            }
+          }
+
         }
       }
-      catch (Exception e) {
+      catch (Exception var22) {
       }
+
       if (sqlInfos.size() >= 2) {
         break;
       }
@@ -140,23 +180,23 @@ public class QueryLogResource
 
     return Response.status(200)
                    .type(MediaType.APPLICATION_JSON_TYPE)
-                   .entity(
-                       jsonMapper.writeValueAsBytes(
-                           sqlInfos
-                       )
-                   )
+                   .entity(this.jsonMapper.writeValueAsBytes(sqlInfos))
                    .build();
   }
 
   @GET
-  @Path("/getTopNQuery/{topN}")
-  @Consumes(MediaType.APPLICATION_JSON)
-  @ResourceFilters(RulesResourceFilter.class)
-  public Response getTopNQuery(@PathParam("topN") int topN, @QueryParam("keyword") final String keyword)
-      throws JsonProcessingException
+  @Path("/getTopNQuery")
+  @Consumes({"application/json"})
+  @ResourceFilters({RulesResourceFilter.class})
+  public Response getTopNQuery(
+      @QueryParam("topN") int topN,
+      @QueryParam("keyword") String keyword,
+      @QueryParam("start") String start,
+      @QueryParam("end") String end
+  ) throws JsonProcessingException, ParseException
   {
-    Pattern p = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}.log");
-    File[] files = new File(requestLoggerBaseDir).listFiles(new FilenameFilter()
+    final Pattern p = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}.log");
+    File[] files = (new File(this.requestLoggerBaseDir)).listFiles(new FilenameFilter()
     {
       @Override
       public boolean accept(File dir, String name)
@@ -165,70 +205,131 @@ public class QueryLogResource
         return m.matches();
       }
     });
+    long startTime = getDateTime(start);
+    long endTime = getDateTime(end);
+    MinMaxPriorityQueue<String> maxHeap = getQueue(topN, this.jsonMapper);
+    File[] var12 = files;
+    int var13 = files.length;
 
-    MinMaxPriorityQueue<String> maxHeap = MinMaxPriorityQueue
-        .orderedBy(Ordering.from(new Comparator<String>()
-        {
-          String[] timeKeys = {"sqlQuery/time", "query/time"};
+label160:
+    for (int var14 = 0; var14 < var13; ++var14) {
+      File file = var12[var14];
 
-          @Override
-          public int compare(String line1, String line2)
-          {
-            Long cost1 = costExtracted(line1);
-            Long cost2 = costExtracted(line2);
-            return cost2.compareTo(cost1);
-          }
+      try {
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        Throwable var17 = null;
 
-          private long costExtracted(String line1)
-          {
-            long cost1 = 0;
-
-            String[] logArr = line1.split("\t");
-            for (int i = 2; i < logArr.length; i++) {
-              try {
-                JsonNode node = jsonMapper.readTree(logArr[i]);
-                for (String k : timeKeys) {
-                  if (node.has(k)) {
-                    cost1 = node.get(k).asLong();
-                    break;
+        try {
+          while (true) {
+            String tmp;
+            long time;
+            do {
+              do {
+                do {
+                  if ((tmp = br.readLine()) == null) {
+                    continue label160;
                   }
-                }
-              }
-              catch (JsonProcessingException e) {
-                log.error("fail to parse request log:[%s].", e.getMessage());
-              }
-              if (cost1 > 0) {
-                break;
-              }
-            }
-            return cost1;
-          }
-        }))
-        .maximumSize(topN)
-        .create();
 
-    for (File file : files) {
-      try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
-        String tmp;
-        while ((tmp = br.readLine()) != null) {
-          if (StringUtils.isNotEmpty(keyword) && !tmp.contains(keyword)) {
-            continue;
+                  time = getDateTime(tmp.split("\t")[0]);
+                } while (time < startTime);
+              } while (time > endTime);
+            } while (StringUtils.isNotEmpty(keyword) && !tmp.contains(keyword));
+
+            maxHeap.offer(tmp);
           }
-          maxHeap.add(tmp);
+        }
+        catch (Throwable var29) {
+          var17 = var29;
+          throw var29;
+        }
+        finally {
+          if (br != null) {
+            if (var17 != null) {
+              try {
+                br.close();
+              }
+              catch (Throwable var28) {
+                var17.addSuppressed(var28);
+              }
+            } else {
+              br.close();
+            }
+          }
+
         }
       }
-      catch (Exception e) {
-        log.error("fail to read request log:[%s].", e.getMessage());
+      catch (Exception var31) {
+        log.error("fail to read request log:[%s].", new Object[]{var31.getMessage()});
       }
+    }
+
+    ArrayList result = new ArrayList();
+
+    while (!maxHeap.isEmpty()) {
+      result.add(maxHeap.poll());
     }
 
     return Response.status(200)
                    .type(MediaType.APPLICATION_JSON_TYPE)
-                   .entity(
-                       jsonMapper.writeValueAsBytes(
-                           Lists.newArrayList(maxHeap.iterator())
-                       )
-                   )
+                   .entity(this.jsonMapper.writeValueAsBytes(result))
                    .build();
+  }
+
+  @Nonnull
+  public static MinMaxPriorityQueue<String> getQueue(int topN, final ObjectMapper jsonMapper)
+  {
+    MinMaxPriorityQueue<String> maxHeap = MinMaxPriorityQueue.orderedBy(Ordering.from(new Comparator<String>()
+    {
+      String[] timeKeys = new String[]{"sqlQuery/time", "query/time"};
+      Ordering comparable = Comparators.naturalNullsFirst().reverse();
+
+      @Override
+      public int compare(String line1, String line2)
+      {
+        Long cost1 = this.costExtracted(line1);
+        Long cost2 = this.costExtracted(line2);
+        int compare = this.comparable.compare(cost1, cost2);
+        return compare != 0 ? compare : 0;
+      }
+
+      private long costExtracted(String line)
+      {
+        long cost = 0L;
+        String[] logArr = line.split("\t");
+
+        for (int i = 2; i < logArr.length; ++i) {
+          try {
+            JsonNode node = jsonMapper.readTree(logArr[i]);
+            String[] var7 = this.timeKeys;
+            int var8 = var7.length;
+
+            for (String k : var7) {
+              if (node.has(k)) {
+                cost = node.get(k).asLong();
+                break;
+              }
+            }
+          }
+          catch (JsonProcessingException var11) {
+            QueryLogResource.log.error("fail to parse request log:[%s].", new Object[]{var11.getMessage()});
+          }
+
+          if (cost > 0L) {
+            break;
+          }
+        }
+
+        return cost;
+      }
+    })).maximumSize(topN).create();
+    return maxHeap;
+  }
+
+  public static long getDateTime(String dateTime) throws ParseException
+  {
+    String pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+    simpleDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+    return simpleDateFormat.parse(dateTime).getTime();
   }
 }

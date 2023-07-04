@@ -22,11 +22,13 @@ package org.apache.druid.server;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -68,6 +70,7 @@ import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.Authenticator;
 import org.apache.druid.server.security.AuthenticatorMapper;
+import org.apache.druid.sql.http.QueryLogResource;
 import org.apache.druid.sql.http.SqlQuery;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
@@ -88,6 +91,9 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -235,7 +241,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
     final boolean isNativeQueryEndpoint = requestURI.startsWith("/druid/v2") && !requestURI.startsWith("/druid/v2/sql");
     final boolean isSqlQueryEndpoint = requestURI.startsWith("/druid/v2/sql");
     final boolean isPromqlQueryEndpoint = requestURI.startsWith("/api/v1");
-
+    boolean logQueryEndpoint = requestURI.startsWith("/druid/v2/query");
     final boolean isAvaticaJson = requestURI.startsWith("/druid/v2/sql/avatica");
     final boolean isAvaticaPb = requestURI.startsWith("/druid/v2/sql/avatica-protobuf");
 
@@ -326,6 +332,65 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
     } else if (isPromqlQueryEndpoint && HttpMethod.POST.is(method)) {
       targetServer = hostFinder.pickDefaultServer();
     } else {
+
+      if (logQueryEndpoint) {
+        try {
+          request.setAttribute("Druid-Authorization-Checked", true);
+          Collection<Server> servers = this.hostFinder.getAllServers();
+          List<String> result = new ArrayList(servers.size());
+          int topN = -1;
+          Iterator var17 = servers.iterator();
+
+          while (true) {
+            while (var17.hasNext()) {
+              Server s = (Server) var17.next();
+              Map<String, String[]> paramMap = request.getParameterMap();
+              StringBuilder paramsBuild = new StringBuilder("?paramas=1");
+              Iterator var21 = paramMap.entrySet().iterator();
+
+              while (var21.hasNext()) {
+                Map.Entry<String, String[]> e = (Map.Entry) var21.next();
+                paramsBuild.append("&").append((String) e.getKey()).append("=").append(((String[]) e.getValue())[0]);
+                if ("topN".equals(e.getKey())) {
+                  topN = Integer.parseInt(((String[]) e.getValue())[0]);
+                }
+              }
+
+              String url = "http://" + s.getHost() + requestURI + paramsBuild;
+              String resp = ((HttpClient) this.httpClientProvider.get()).GET(url).getContentAsString();
+              if (resp.startsWith("[")) {
+                Iterator it = objectMapper.readTree(resp).elements();
+                while (it.hasNext()) {
+                  result.add(((JsonNode) it.next()).asText());
+                }
+              } else {
+                result.add(resp);
+              }
+            }
+
+            if (topN > -1) {
+              MinMaxPriorityQueue<String> maxHeap = QueryLogResource.getQueue(topN, this.jsonMapper);
+              maxHeap.addAll(result);
+              result.clear();
+
+              while (!maxHeap.isEmpty()) {
+                result.add(maxHeap.poll());
+              }
+            }
+
+            response.setStatus(200);
+            response.setContentType("application/json");
+            objectMapper.writeValue(response.getOutputStream(), result);
+            break;
+          }
+        }
+        catch (Exception var29) {
+          LOG.error("Fail to get query logs:[%s]", new Object[]{var29.getMessage()});
+        }
+
+        return;
+      }
+
       targetServer = hostFinder.pickDefaultServer();
       LOG.debug("Forwarding query to broker [%s]", targetServer.getHost());
     }
