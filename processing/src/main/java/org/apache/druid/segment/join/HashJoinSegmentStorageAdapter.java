@@ -323,7 +323,7 @@ public class HashJoinSegmentStorageAdapter implements StorageAdapter
     );
 
     Closer joinablesCloser = Closer.create();
-    final long startTime = System.currentTimeMillis();
+    final long timeoutAt = System.currentTimeMillis() + 3 * 60 * 1000;
     return Sequences.<Cursor, Cursor>map(
         baseCursorSequence,
         cursor -> {
@@ -338,7 +338,7 @@ public class HashJoinSegmentStorageAdapter implements StorageAdapter
               retVal,
               VirtualColumns.create(postJoinVirtualColumns),
               joinFilterSplit.getJoinTableFilter().orElse(null),
-              startTime
+              timeoutAt
           );
         }
     ).withBaggage(joinablesCloser);

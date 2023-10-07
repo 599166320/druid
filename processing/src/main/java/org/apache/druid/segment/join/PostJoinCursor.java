@@ -37,12 +37,12 @@ public class PostJoinCursor implements Cursor
 {
   private final Cursor baseCursor;
   private final ColumnSelectorFactory columnSelectorFactory;
-  private final long startTime;
+  private final long timeoutAt;
 
   @Nullable
   private final ValueMatcher valueMatcher;
 
-  private PostJoinCursor(Cursor baseCursor, VirtualColumns virtualColumns, @Nullable Filter filter, long startTime)
+  private PostJoinCursor(Cursor baseCursor, VirtualColumns virtualColumns, @Nullable Filter filter, long timeoutAt)
   {
     this.baseCursor = baseCursor;
 
@@ -53,17 +53,17 @@ public class PostJoinCursor implements Cursor
     } else {
       this.valueMatcher = filter.makeMatcher(this.columnSelectorFactory);
     }
-    this.startTime = startTime;
+    this.timeoutAt = timeoutAt;
   }
 
   public static PostJoinCursor wrap(
       final Cursor baseCursor,
       final VirtualColumns virtualColumns,
       @Nullable final Filter filter,
-      final long startTime
+      final long timeoutAt
   )
   {
-    final PostJoinCursor postJoinCursor = new PostJoinCursor(baseCursor, virtualColumns, filter, startTime);
+    final PostJoinCursor postJoinCursor = new PostJoinCursor(baseCursor, virtualColumns, filter, timeoutAt);
     postJoinCursor.advanceToMatch();
     return postJoinCursor;
   }
@@ -94,7 +94,7 @@ public class PostJoinCursor implements Cursor
   {
     advanceUninterruptibly();
     BaseQuery.checkInterrupted();
-    if (System.currentTimeMillis() - startTime > 3 * 1000 * 60) {
+    if (System.currentTimeMillis() > timeoutAt) {
       throw new RuntimeException("Post join execution timeout.");
     }
   }
