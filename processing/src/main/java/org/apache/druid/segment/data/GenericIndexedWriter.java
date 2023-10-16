@@ -166,7 +166,7 @@ public class GenericIndexedWriter<T> implements Serializer
       ObjectStrategy<T> strategy
   )
   {
-    this(segmentWriteOutMedium, filenameBase, strategy, Integer.MAX_VALUE & ~PAGE_SIZE);
+    this(segmentWriteOutMedium, filenameBase, strategy, (int) ((Integer.MAX_VALUE & ~PAGE_SIZE) * 0.8));
   }
 
   public GenericIndexedWriter(

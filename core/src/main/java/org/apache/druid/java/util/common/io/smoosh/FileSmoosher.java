@@ -112,6 +112,11 @@ public class FileSmoosher implements Closeable
     Preconditions.checkArgument(maxChunkSize > 0, "maxChunkSize must be a positive value.");
   }
 
+  public int getMaxChunkSize()
+  {
+    return maxChunkSize;
+  }
+
   static File metaFile(File baseDir)
   {
     return new File(baseDir, StringUtils.format("meta.%s", FILE_EXTENSION));
