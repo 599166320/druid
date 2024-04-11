@@ -74,7 +74,30 @@ public class JsonConfigurator
     return configurate(props, propertyPrefix, clazz, null);
   }
 
+
   public <T> T configurate(
+      java.util.Properties props,
+      String propertyPrefix,
+      Class<T> clazz,
+      @Nullable Class<? extends T> defaultClass
+  ) throws com.google.inject.ProvisionException
+  {
+    return configurateDecode(props, propertyPrefix, clazz, defaultClass);
+  }
+
+
+  public <T> T configurateDecode(
+      java.util.Properties props,
+      String propertyPrefix,
+      Class<T> clazz,
+      @Nullable Class<? extends T> defaultClass
+  ) throws com.google.inject.ProvisionException
+  {
+    return configurateV1(props, propertyPrefix, clazz, defaultClass);
+  }
+
+
+  public <T> T configurateV1(
       Properties props,
       String propertyPrefix,
       Class<T> clazz,
