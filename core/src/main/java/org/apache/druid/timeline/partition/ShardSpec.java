@@ -26,6 +26,7 @@ import com.google.common.collect.RangeSet;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A Marker interface that exists to combine ShardSpec objects together for Jackson. Note that this is not an
@@ -40,6 +41,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = ShardSpec.Type.LINEAR, value = LinearShardSpec.class),
     @JsonSubTypes.Type(name = ShardSpec.Type.NUMBERED, value = NumberedShardSpec.class),
     @JsonSubTypes.Type(name = ShardSpec.Type.HASHED, value = HashBasedNumberedShardSpec.class),
+    @JsonSubTypes.Type(name = KafkaPartitionNumberedShardSpec.TYPE, value = KafkaPartitionNumberedShardSpec.class),
     @JsonSubTypes.Type(name = ShardSpec.Type.NUMBERED_OVERWRITE, value = NumberedOverwriteShardSpec.class),
     // BuildingShardSpecs are the shardSpec with missing numCorePartitions, and thus must not be published.
     // See BuildingShardSpec for more details.
@@ -143,6 +145,16 @@ public interface ShardSpec
   default boolean sharePartitionSpace(PartialShardSpec partialShardSpec)
   {
     return !partialShardSpec.useNonRootGenerationPartitionSpace();
+  }
+
+  default boolean forcePartition(Set<String> partitionIds)
+  {
+    return false;
+  }
+
+  default boolean checkForcePartition()
+  {
+    return false;
   }
 
   /**

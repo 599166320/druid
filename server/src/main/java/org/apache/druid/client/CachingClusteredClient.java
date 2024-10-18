@@ -60,6 +60,7 @@ import org.apache.druid.query.CacheStrategy;
 import org.apache.druid.query.DruidProcessingConfig;
 import org.apache.druid.query.Queries;
 import org.apache.druid.query.Query;
+import org.apache.druid.query.QueryContext;
 import org.apache.druid.query.QueryContexts;
 import org.apache.druid.query.QueryMetrics;
 import org.apache.druid.query.QueryPlus;
@@ -375,6 +376,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
         List<Sequence<T>> sequencesByInterval = new ArrayList<>(alreadyCachedResults.size() + segmentsByServer.size());
         addSequencesFromCache(sequencesByInterval, alreadyCachedResults);
         addSequencesFromServer(sequencesByInterval, segmentsByServer);
+        addSequencesFromFederatedCluster(sequencesByInterval);
         return merge(sequencesByInterval);
       });
 
@@ -434,6 +436,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
 
       final Set<SegmentServerSelector> segments = new LinkedHashSet<>();
       final Map<String, Optional<RangeSet<String>>> dimensionRangeCache = new HashMap<>();
+      int original = 0;
       // Filter unneeded chunks based on partition dimension
       for (TimelineObjectHolder<String, ServerSelector> holder : serversLookup) {
         final Set<PartitionChunk<ServerSelector>> filteredChunks;
@@ -447,6 +450,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
         } else {
           filteredChunks = Sets.newHashSet(holder.getObject());
         }
+        original += Sets.newHashSet(holder.getObject()).size();
         for (PartitionChunk<ServerSelector> chunk : filteredChunks) {
           ServerSelector server = chunk.getObject();
           final SegmentDescriptor segment = new SegmentDescriptor(
@@ -457,6 +461,7 @@ public class CachingClusteredClient implements QuerySegmentWalker
           segments.add(new SegmentServerSelector(server, segment));
         }
       }
+      log.debug("原本需要查询的segment数量是:" + original + ",结果优化之后，查询的segment数量是" + segments.size());
       return segments;
     }
 
@@ -671,6 +676,23 @@ public class CachingClusteredClient implements QuerySegmentWalker
         listOfSequences.add(serverResults);
       });
     }
+
+    private void addSequencesFromFederatedCluster(
+        final List<Sequence<T>> listOfSequences
+    )
+    {
+      if (query.getQueryContext().containsKey(QueryContexts.FEDERATED_CLUSSTER_BROKERS) && query.getQueryContext().getAsString(QueryContexts.FEDERATED_CLUSSTER_BROKERS).length() > 0) {
+        String [] brokers = query.getQueryContext().getAsString(QueryContexts.FEDERATED_CLUSSTER_BROKERS).split(",");
+        for (String hostName : brokers) {
+          final QueryRunner serverRunner = serverView.getAndAddServer(hostName).getQueryRunner();
+          // Divide user-provided maxQueuedBytes by the number of servers, and limit each server to that much.
+          final long maxQueuedBytes = QueryContexts.getMaxQueuedBytes(query, httpClientConfig.getMaxQueuedBytes());
+          final Sequence<T> serverResults = serverRunner.run(queryPlus.withQuery(queryPlus.getQuery().withOverriddenContext(ImmutableMap.of(QueryContexts.FEDERATED_CLUSSTER_BROKERS, ""))).withMaxQueuedBytes(maxQueuedBytes), responseContext);
+          listOfSequences.add(serverResults);
+        }
+      }
+    }
+
 
     @SuppressWarnings("unchecked")
     private Sequence<T> getBySegmentServerResults(

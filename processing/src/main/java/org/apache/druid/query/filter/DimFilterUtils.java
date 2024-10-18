@@ -20,11 +20,14 @@
 package org.apache.druid.query.filter;
 
 import com.google.common.base.Function;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import org.apache.druid.timeline.partition.ShardSpec;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -131,6 +134,32 @@ public class DimFilterUtils
       boolean include = true;
 
       if (dimFilter != null && shard != null) {
+
+        //force partition
+        if (shard.checkForcePartition()) {
+          RangeSet<String> p = dimFilter.getDimensionRangeSet("p");
+          if (p != null && !p.isEmpty()) {
+            Set<Range<String>> rangeSet = p.asRanges();
+            Set<String> ps = new HashSet<>();
+            for (Range<String> r : rangeSet) {
+              if (r.isEmpty() || !r.hasLowerBound() || !r.hasUpperBound() ||
+                  r.lowerBoundType() != BoundType.CLOSED || r.upperBoundType() != BoundType.CLOSED ||
+                  !r.lowerEndpoint().equals(r.upperEndpoint())) {
+                break;
+              }
+              ps.add(r.lowerEndpoint());
+            }
+            if (ps.size() > 0) {
+              boolean inForcePartiontion = shard.forcePartition(ps);
+              if (inForcePartiontion) {
+                retSet.add(obj);
+              }
+              //Force-query sharding, the result is clear
+              continue;
+            }
+          }
+        }
+
         Map<String, RangeSet<String>> filterDomain = new HashMap<>();
         List<String> dimensions = shard.getDomainDimensions();
         for (String dimension : dimensions) {

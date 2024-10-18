@@ -71,6 +71,7 @@ public class BrokerServerView implements TimelineServerView
   private final Object lock = new Object();
 
   private final ConcurrentMap<String, QueryableDruidServer> clients;
+  private final ConcurrentMap<String, QueryableDruidServer> federatedClients;
   private final Map<SegmentId, ServerSelector> selectors;
   private final Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelines;
   private final ConcurrentMap<TimelineCallback, Executor> timelineCallbacks = new ConcurrentHashMap<>();
@@ -107,6 +108,7 @@ public class BrokerServerView implements TimelineServerView
     this.tierSelectorStrategy = tierSelectorStrategy;
     this.emitter = emitter;
     this.clients = new ConcurrentHashMap<>();
+    this.federatedClients = new ConcurrentHashMap<>();
     this.selectors = new HashMap<>();
     this.timelines = new HashMap<>();
 
@@ -235,6 +237,22 @@ public class BrokerServerView implements TimelineServerView
       log.warn("QueryRunner for server[%s] already exists!? Well it's getting replaced", server);
     }
 
+    return retVal;
+  }
+
+
+  @Override
+  public QueryableDruidServer getAndAddServer(String hostAndPort)
+  {
+    if (federatedClients.containsKey(hostAndPort)) {
+      return federatedClients.get(hostAndPort);
+    }
+    DruidServer server = new DruidServer(hostAndPort, hostAndPort, null, 0, ServerType.BROKER, hostAndPort, 0);
+    QueryableDruidServer retVal = new QueryableDruidServer<>(server, makeDirectClient(server));
+    QueryableDruidServer exists = federatedClients.put(server.getName(), retVal);
+    if (exists != null) {
+      log.warn("QueryRunner for server[%s] already exists!? Well it's getting replaced", server);
+    }
     return retVal;
   }
 

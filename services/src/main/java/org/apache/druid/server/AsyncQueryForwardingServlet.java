@@ -19,11 +19,17 @@
 
 package org.apache.druid.server;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.MinMaxPriorityQueue;
+import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import org.apache.calcite.avatica.remote.ProtobufTranslation;
@@ -36,15 +42,24 @@ import org.apache.druid.guice.annotations.Smile;
 import org.apache.druid.guice.http.DruidHttpClientConfig;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.IAE;
+import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.java.util.common.jackson.JacksonUtils;
 import org.apache.druid.java.util.emitter.EmittingLogger;
 import org.apache.druid.java.util.emitter.service.ServiceEmitter;
+import org.apache.druid.query.DataSource;
 import org.apache.druid.query.DruidMetrics;
 import org.apache.druid.query.GenericQueryMetricsFactory;
 import org.apache.druid.query.Query;
 import org.apache.druid.query.QueryInterruptedException;
 import org.apache.druid.query.QueryMetrics;
+import org.apache.druid.query.QueryRunner;
+import org.apache.druid.query.QuerySegmentWalker;
 import org.apache.druid.query.QueryToolChestWarehouse;
+import org.apache.druid.query.filter.DimFilter;
+import org.apache.druid.query.groupby.GroupByQuery;
+import org.apache.druid.query.spec.QuerySegmentSpec;
+import org.apache.druid.query.timeseries.TimeseriesQuery;
+import org.apache.druid.query.topn.TopNQuery;
 import org.apache.druid.server.initialization.ServerConfig;
 import org.apache.druid.server.initialization.jetty.StandardResponseHeaderFilterHolder;
 import org.apache.druid.server.log.RequestLogger;
@@ -55,6 +70,7 @@ import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.Authenticator;
 import org.apache.druid.server.security.AuthenticatorMapper;
+import org.apache.druid.sql.http.QueryLogResource;
 import org.apache.druid.sql.http.SqlQuery;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
@@ -64,13 +80,21 @@ import org.eclipse.jetty.client.util.BytesContentProvider;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.proxy.AsyncProxyServlet;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
+import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
@@ -216,7 +240,8 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
     // them as a generic request.
     final boolean isNativeQueryEndpoint = requestURI.startsWith("/druid/v2") && !requestURI.startsWith("/druid/v2/sql");
     final boolean isSqlQueryEndpoint = requestURI.startsWith("/druid/v2/sql");
-
+    final boolean isPromqlQueryEndpoint = requestURI.startsWith("/api/v1");
+    boolean logQueryEndpoint = requestURI.startsWith("/druid/v2/query");
     final boolean isAvaticaJson = requestURI.startsWith("/druid/v2/sql/avatica");
     final boolean isAvaticaPb = requestURI.startsWith("/druid/v2/sql/avatica-protobuf");
 
@@ -244,8 +269,10 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
       LOG.debug("Broadcasting cancellation request to all brokers");
     } else if (isNativeQueryEndpoint && HttpMethod.POST.is(method)) {
       // query request
+      byte[] datas = getRequestPostBytes(request);
       try {
-        Query inputQuery = objectMapper.readValue(request.getInputStream(), Query.class);
+        //Query inputQuery = objectMapper.readValue(request.getInputStream(), Query.class);
+        Query inputQuery = objectMapper.readValue(datas, Query.class);
         if (inputQuery != null) {
           targetServer = hostFinder.pickServer(inputQuery);
           if (inputQuery.getId() == null) {
@@ -259,8 +286,29 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
         request.setAttribute(QUERY_ATTRIBUTE, inputQuery);
       }
       catch (IOException e) {
-        handleQueryParseException(request, response, objectMapper, e, true);
-        return;
+        try {
+          view materializedViewQuery = objectMapper.readValue(datas, view.class);
+          materializedViewQuery.setQueryType("view");
+          request.setAttribute(QUERY_ATTRIBUTE, materializedViewQuery);
+          Query inputQuery = materializedViewQuery.getQuery();
+          Server targetServer1;
+          if (inputQuery != null) {
+            targetServer1 = hostFinder.pickServer(inputQuery);
+            if (inputQuery.getId() == null) {
+              inputQuery.withId(UUID.randomUUID().toString());
+            }
+          } else {
+            targetServer1 = hostFinder.pickDefaultServer();
+          }
+          request.setAttribute(HOST_ATTRIBUTE, targetServer1.getHost());
+          request.setAttribute(SCHEME_ATTRIBUTE, targetServer1.getScheme());
+          doService(request, response);
+          return;
+        }
+        catch (Exception e1) {
+          handleQueryParseException(request, response, objectMapper, e, true);
+          return;
+        }
       }
       catch (Exception e) {
         handleException(response, objectMapper, e);
@@ -281,7 +329,68 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
         handleException(response, objectMapper, e);
         return;
       }
+    } else if (isPromqlQueryEndpoint && HttpMethod.POST.is(method)) {
+      targetServer = hostFinder.pickDefaultServer();
     } else {
+
+      if (logQueryEndpoint) {
+        try {
+          request.setAttribute("Druid-Authorization-Checked", true);
+          Collection<Server> servers = this.hostFinder.getAllServers();
+          List<String> result = new ArrayList(servers.size());
+          int topN = -1;
+          Iterator var17 = servers.iterator();
+
+          while (true) {
+            while (var17.hasNext()) {
+              Server s = (Server) var17.next();
+              Map<String, String[]> paramMap = request.getParameterMap();
+              StringBuilder paramsBuild = new StringBuilder("?paramas=1");
+              Iterator var21 = paramMap.entrySet().iterator();
+
+              while (var21.hasNext()) {
+                Map.Entry<String, String[]> e = (Map.Entry) var21.next();
+                paramsBuild.append("&").append((String) e.getKey()).append("=").append(((String[]) e.getValue())[0]);
+                if ("topN".equals(e.getKey())) {
+                  topN = Integer.parseInt(((String[]) e.getValue())[0]);
+                }
+              }
+
+              String url = "http://" + s.getHost() + requestURI + paramsBuild;
+              String resp = ((HttpClient) this.httpClientProvider.get()).GET(url).getContentAsString();
+              if (resp.startsWith("[")) {
+                Iterator it = objectMapper.readTree(resp).elements();
+                while (it.hasNext()) {
+                  result.add(((JsonNode) it.next()).asText());
+                }
+              } else {
+                result.add(resp);
+              }
+            }
+
+            if (topN > -1) {
+              MinMaxPriorityQueue<String> maxHeap = QueryLogResource.getQueue(topN, this.jsonMapper);
+              maxHeap.addAll(result);
+              result.clear();
+
+              while (!maxHeap.isEmpty()) {
+                result.add(maxHeap.poll());
+              }
+            }
+
+            response.setStatus(200);
+            response.setContentType("application/json");
+            objectMapper.writeValue(response.getOutputStream(), result);
+            break;
+          }
+        }
+        catch (Exception var29) {
+          LOG.error("Fail to get query logs:[%s]", new Object[]{var29.getMessage()});
+        }
+
+        return;
+      }
+
       targetServer = hostFinder.pickDefaultServer();
       LOG.debug("Forwarding query to broker [%s]", targetServer.getHost());
     }
@@ -762,5 +871,200 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet implements Qu
       queryMetrics.success(success);
       queryMetrics.reportQueryTime(requestTimeNs).emit(emitter);
     }
+  }
+
+  private static byte[] getRequestPostBytes(HttpServletRequest request) throws IOException
+  {
+    int contentLength = request.getContentLength();
+    if (contentLength < 0) {
+      return null;
+    }
+    byte[] buffer = new byte[contentLength];
+    for (int i = 0; i < contentLength; ) {
+      int readlen = request.getInputStream().read(buffer, i,
+                                                  contentLength - i
+      );
+      if (readlen == -1) {
+        break;
+      }
+      i += readlen;
+    }
+    return buffer;
+  }
+}
+
+class view implements Query
+{
+  public String queryType;
+  private Query query;
+
+  @JsonCreator
+  public view(
+      @JsonProperty("query") Query query,
+      @JsonProperty("queryType") String queryType
+  )
+  {
+    Preconditions.checkArgument(
+        query instanceof TopNQuery || query instanceof TimeseriesQuery || query instanceof GroupByQuery,
+        "Only topN/timeseries/groupby query are supported"
+    );
+    this.query = query;
+    this.queryType = queryType;
+  }
+
+  public void setQueryType(String queryType)
+  {
+    this.queryType = queryType;
+  }
+
+  public void setQuery(Query query)
+  {
+    this.query = query;
+  }
+
+  @JsonProperty("queryType")
+  public String getQueryType()
+  {
+    return queryType;
+  }
+
+  @JsonProperty("query")
+  public Query getQuery()
+  {
+    return query;
+  }
+
+  @Override
+  public DataSource getDataSource()
+  {
+    return query.getDataSource();
+  }
+
+  @Override
+  public boolean hasFilters()
+  {
+    return query.hasFilters();
+  }
+
+  @Override
+  public DimFilter getFilter()
+  {
+    return query.getFilter();
+  }
+
+  @Override
+  public String getType()
+  {
+    return query.getType();
+  }
+
+  @Override
+  public QueryRunner getRunner(QuerySegmentWalker walker)
+  {
+    return query.getRunner(walker);
+  }
+
+  @Override
+  public List<Interval> getIntervals()
+  {
+    return query.getIntervals();
+  }
+
+  @Override
+  public Duration getDuration()
+  {
+    return query.getDuration();
+  }
+
+  @Override
+  public Granularity getGranularity()
+  {
+    return query.getGranularity();
+  }
+
+  @Override
+  public DateTimeZone getTimezone()
+  {
+    return null;
+  }
+
+  @Override
+  public Map<String, Object> getContext()
+  {
+    return query.getContext();
+  }
+
+  @Override
+  public boolean getContextBoolean(String key, boolean defaultValue)
+  {
+    return query.getContextBoolean(key, defaultValue);
+  }
+
+  @Override
+  public boolean isDescending()
+  {
+    return query.isDescending();
+  }
+
+  @Override
+  public Ordering getResultOrdering()
+  {
+    return query.getResultOrdering();
+  }
+
+  @Override
+  public Query withQuerySegmentSpec(QuerySegmentSpec spec)
+  {
+    return query.withQuerySegmentSpec(spec);
+  }
+
+  @Override
+  public Query withId(String id)
+  {
+    return query.withId(id);
+  }
+
+  @Nullable
+  @Override
+  public String getId()
+  {
+    return query.getId();
+  }
+
+  @Override
+  public Query withSubQueryId(String subQueryId)
+  {
+    return query.withSubQueryId(subQueryId);
+  }
+
+  @Nullable
+  @Override
+  public String getSubQueryId()
+  {
+    return query.getSubQueryId();
+  }
+
+  @Override
+  public Query withDataSource(DataSource dataSource)
+  {
+    return query.withDataSource(dataSource);
+  }
+
+  @Override
+  public Query withOverriddenContext(Map contextOverride)
+  {
+    return query.withOverriddenContext(contextOverride);
+  }
+
+  @Override
+  public Object getContextValue(String key, Object defaultValue)
+  {
+    return query.getContextValue(key, defaultValue);
+  }
+
+  @Override
+  public Object getContextValue(String key)
+  {
+    return query.getContextValue(key);
   }
 }

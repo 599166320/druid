@@ -51,6 +51,7 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
   private final long origin;
   private final boolean hasOrigin;
   private final boolean isCompound;
+  private int count;
 
   @JsonCreator
   public PeriodGranularity(
@@ -118,6 +119,11 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
   @Override
   public long increment(long t)
   {
+    count++;
+    if (count > 100000000) {
+      count = 0;
+      throw new RuntimeException("Skip large queries.");
+    }
     return chronology.add(period, t, 1);
   }
 

@@ -30,6 +30,7 @@ import org.apache.druid.indexing.common.actions.RetrieveUnusedSegmentsAction;
 import org.apache.druid.indexing.common.actions.SegmentNukeAction;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.indexing.common.actions.TaskLocks;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.timeline.DataSegment;
@@ -128,5 +129,16 @@ public class KillUnusedSegmentsTask extends AbstractFixedIntervalTask
         taskLock -> taskLockMap.computeIfAbsent(taskLock.getInterval().getStart(), k -> new ArrayList<>()).add(taskLock)
     );
     return taskLockMap;
+  }
+
+  @Override
+  public OtherConfig otherConfig()
+  {
+    OtherConfig otherConfig = super.otherConfig();
+    Map<String, Object> context = super.getContext();
+    if (context != null) {
+      otherConfig.putAll(context);
+    }
+    return otherConfig;
   }
 }

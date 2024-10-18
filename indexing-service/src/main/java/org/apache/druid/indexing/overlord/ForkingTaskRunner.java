@@ -45,6 +45,7 @@ import org.apache.druid.guice.annotations.Self;
 import org.apache.druid.indexer.RunnerTaskState;
 import org.apache.druid.indexer.TaskLocation;
 import org.apache.druid.indexer.TaskStatus;
+import org.apache.druid.indexing.common.config.OtherConfig;
 import org.apache.druid.indexing.common.config.TaskConfig;
 import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.common.tasklogs.ConsoleLoggingEnforcementConfigurationFactory;
@@ -225,13 +226,25 @@ public class ForkingTaskRunner
 
                         command.add(StringUtils.format("-XX:ActiveProcessorCount=%d", numProcessorsPerTask));
 
-                        Iterables.addAll(command, new QuotableWhiteSpaceSplitter(config.getJavaOpts()));
-                        Iterables.addAll(command, config.getJavaOptsArray());
+                        OtherConfig otherConfig = task.otherConfig();
+                        Object taskJavaOpts = null;
+                        if (otherConfig != null && otherConfig.size() > 0) {
+                          // Override task specific javaOpts
+                          taskJavaOpts = otherConfig.getProperty(ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY);
+                          LOGGER.info("Other config is :%s", taskJavaOpts);
+                        }
 
-                        // Override task specific javaOpts
-                        Object taskJavaOpts = task.getContextValue(
-                            ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY
-                        );
+                        if (taskJavaOpts == null) {
+
+                          Iterables.addAll(command, new QuotableWhiteSpaceSplitter(config.getJavaOpts()));
+                          Iterables.addAll(command, config.getJavaOptsArray());
+
+                          // Override task specific javaOpts
+                          taskJavaOpts = task.getContextValue(
+                              ForkingTaskRunnerConfig.JAVA_OPTS_PROPERTY
+                          );
+                        }
+
                         if (taskJavaOpts != null) {
                           Iterables.addAll(
                               command,

@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import org.apache.druid.common.config.NullHandling;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.HumanReadableBytes;
+import org.apache.druid.java.util.common.IAE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
 import org.apache.druid.math.expr.vector.CastToTypeVectorProcessor;
@@ -3753,6 +3754,75 @@ public interface Function extends NamedFunction
         );
       }
       return ExpressionTypeFactory.getInstance().ofComplex((String) args.get(0).getLiteralValue());
+    }
+  }
+
+  class VirtualColumnsFunction implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "virtual_column";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, Expr.ObjectBinding bindings)
+    {
+      final ExprEval values = args.get(0).eval(bindings);
+      final ExprEval keys = args.get(1).eval(bindings);
+      final ExprEval keyNameExprEval = args.get(2).eval(bindings);
+      final String keyName = keyNameExprEval.asString();
+      int i = -1;
+      Object[] keyArr = keys.asArray();
+      if (keyArr != null && values != null) {
+        for (int j = 0; j < keyArr.length; j++) {
+          if (Objects.equals(keyArr[j], keyName)) {
+            i = j;
+            break;
+          }
+        }
+      }
+
+      if (i == -1) {
+        return ExprEval.of(null);
+      }
+      return ExprEval.of((String) values.asArray()[i]);
+    }
+
+    @Override
+    public Set<Expr> getArrayInputs(List<Expr> args)
+    {
+      if (args.size() != 3) {
+        throw new IAE("Function[%s] needs 3 argument", name());
+      }
+      return ImmutableSet.of(args.get(0), args.get(1));
+    }
+
+    @Override
+    public boolean hasArrayInputs()
+    {
+      return true;
+    }
+
+    @Override
+    public void validateArguments(List<Expr> args)
+    {
+      if (args.size() != 3) {
+        throw new IAE("Function[%s] needs 3 argument", name());
+      }
+    }
+
+    @Nullable
+    @Override
+    public ExpressionType getOutputType(Expr.InputBindingInspector inspector, List<Expr> args)
+    {
+      return ExpressionType.STRING;
+    }
+
+    @Override
+    public Set<Expr> getScalarInputs(List<Expr> args)
+    {
+      return ImmutableSet.of(args.get(2));
     }
   }
 }

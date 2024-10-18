@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -39,17 +41,33 @@ public class DynamicPartitionsSpec implements PartitionsSpec
   private final int maxRowsPerSegment;
   @Nullable
   private final Long maxTotalRows;
+  @Nullable
+  private final List<String> partitionDimensions;
+  @Nullable
+  private final Integer kafkaPartitionTotal;
+
+  public DynamicPartitionsSpec(
+          Integer maxRowsPerSegment,
+          Long maxTotalRows
+  )
+  {
+    this(maxRowsPerSegment, maxTotalRows, new ArrayList<>(0), -1);
+  }
 
   @JsonCreator
   public DynamicPartitionsSpec(
       @JsonProperty(PartitionsSpec.MAX_ROWS_PER_SEGMENT) @Nullable Integer maxRowsPerSegment,
-      @JsonProperty("maxTotalRows") @Nullable Long maxTotalRows
+      @JsonProperty("maxTotalRows") @Nullable Long maxTotalRows,
+      @JsonProperty("partitionDimensions") @Nullable List<String> partitionDimensions,
+      @JsonProperty("kafkaPartitionTotal") @Nullable Integer kafkaPartitionTotal
   )
   {
     this.maxRowsPerSegment = PartitionsSpec.isEffectivelyNull(maxRowsPerSegment)
                              ? DEFAULT_MAX_ROWS_PER_SEGMENT
                              : maxRowsPerSegment;
     this.maxTotalRows = maxTotalRows;
+    this.partitionDimensions = partitionDimensions;
+    this.kafkaPartitionTotal = kafkaPartitionTotal;
   }
 
   @Override
@@ -71,7 +89,18 @@ public class DynamicPartitionsSpec implements PartitionsSpec
   {
     return maxTotalRows;
   }
-
+  @Nullable
+  @JsonProperty
+  public List<String> getPartitionDimensions()
+  {
+    return partitionDimensions;
+  }
+  @Nullable
+  @JsonProperty
+  public Integer getKafkaPartitionTotal()
+  {
+    return kafkaPartitionTotal;
+  }
   /**
    * Get the given maxTotalRows or the default.
    * The default can be different depending on the caller.

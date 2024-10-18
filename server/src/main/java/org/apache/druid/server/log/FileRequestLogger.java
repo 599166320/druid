@@ -42,6 +42,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -206,6 +207,14 @@ public class FileRequestLogger implements RequestLogger
       fileWriter.write("\n");
       fileWriter.flush();
     }
+  }
+
+  @Override
+  public Properties getLoggerProperties()
+  {
+    Properties properties = RequestLogger.super.getLoggerProperties();
+    properties.put("baseDir", baseDir.getAbsolutePath());
+    return properties;
   }
 
   @Override

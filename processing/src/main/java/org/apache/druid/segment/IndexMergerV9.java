@@ -624,10 +624,15 @@ public class IndexMergerV9 implements IndexMerger
   ) throws IOException
   {
     ZeroCopyByteArrayOutputStream specBytes = new ZeroCopyByteArrayOutputStream();
-    SERIALIZER_UTILS.writeString(specBytes, mapper.writeValueAsString(serdeficator));
+    String serdeficatorJson = mapper.writeValueAsString(serdeficator);
+    SERIALIZER_UTILS.writeString(specBytes, serdeficatorJson);
+    long size = specBytes.size() + serdeficator.getSerializedSize();
+    if (size > v9Smoosher.getMaxChunkSize()) {
+      log.warn(columnName+" asked to add buffers["+size+"] larger than configured max["+v9Smoosher.getMaxChunkSize()+"],serdeficator is:"+serdeficatorJson);
+    }
     try (SmooshedWriter channel = v9Smoosher.addWithSmooshedWriter(
         columnName,
-        specBytes.size() + serdeficator.getSerializedSize()
+        size
     )) {
       specBytes.writeTo(channel);
       serdeficator.writeTo(channel, v9Smoosher);

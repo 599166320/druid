@@ -172,6 +172,19 @@ public class DruidPlanner implements Closeable
     SqlNode root = planner.parse(plannerContext.getSql());
     parsed = ParsedNodes.create(root, plannerContext.getTimeZone());
 
+    //Check if there are too many in options
+    if (plannerContext.getSql().length() > 23927) {
+      List<Integer> inCounter = root.accept(new InOptionCounter());
+      if (inCounter.stream().anyMatch(counter -> counter > 3000)) {
+        String errorMsg = StringUtils.format(
+            "This sql %s contains too many options, the number of options should not exceed %s",
+            plannerContext.getSql(),
+            3000
+        );
+        throw new ValidationException(errorMsg);
+      }
+    }
+
     if (parsed.isSelect() && !plannerContext.engineHasFeature(EngineFeature.CAN_SELECT)) {
       throw new ValidationException(StringUtils.format("Cannot execute SELECT with SQL engine '%s'.", engine.name()));
     } else if (parsed.isInsert() && !plannerContext.engineHasFeature(EngineFeature.CAN_INSERT)) {

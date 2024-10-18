@@ -28,6 +28,7 @@ import org.apache.druid.client.selector.RandomServerSelectorStrategy;
 import org.apache.druid.client.selector.ServerSelector;
 import org.apache.druid.client.selector.TierSelectorStrategy;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.http.client.HttpClient;
 import org.apache.druid.query.QueryRunner;
 import org.apache.druid.query.QueryToolChestWarehouse;
@@ -45,6 +46,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 
 /**
@@ -52,6 +55,7 @@ import java.util.concurrent.Executor;
  */
 public class SimpleServerView implements TimelineServerView
 {
+  private static final Logger log = new Logger(SimpleServerView.class);
   private static final QueryWatcher NOOP_QUERY_WATCHER = (query, future) -> {};
   private final TierSelectorStrategy tierSelectorStrategy = new HighestPriorityTierSelectorStrategy(
       new RandomServerSelectorStrategy()
@@ -62,6 +66,7 @@ public class SimpleServerView implements TimelineServerView
   private final Map<String, ServerSelector> selectors = new HashMap<>();
   // dataSource -> version -> serverSelector
   private final Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelines = new HashMap<>();
+  private final ConcurrentMap<String, QueryableDruidServer> federatedClients = new ConcurrentHashMap<>();;
 
   private final QueryToolChestWarehouse warehouse;
   private final ObjectMapper objectMapper;
@@ -186,6 +191,34 @@ public class SimpleServerView implements TimelineServerView
         ServerType.HISTORICAL,
         "default",
         0
+    );
+  }
+
+  @Override
+  public QueryableDruidServer getAndAddServer(String hostAndPort)
+  {
+    if (federatedClients.containsKey(hostAndPort)) {
+      return federatedClients.get(hostAndPort);
+    }
+    DruidServer server = new DruidServer(hostAndPort, hostAndPort, null, 0, ServerType.BROKER, hostAndPort, 0);
+    QueryableDruidServer retVal = new QueryableDruidServer<>(server, makeDirectClient(server));
+    QueryableDruidServer exists = federatedClients.put(server.getName(), retVal);
+    if (exists != null) {
+      log.warn("QueryRunner for server[%s] already exists!? Well it's getting replaced", server);
+    }
+    return retVal;
+  }
+
+  private DirectDruidClient makeDirectClient(DruidServer server)
+  {
+    return new DirectDruidClient(
+        warehouse,
+        NOOP_QUERY_WATCHER,
+        objectMapper,
+        httpClient,
+        server.getScheme(),
+        server.getHost(),
+        new NoopServiceEmitter()
     );
   }
 }

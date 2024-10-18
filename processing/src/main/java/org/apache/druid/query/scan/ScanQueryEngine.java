@@ -21,8 +21,11 @@ package org.apache.druid.query.scan;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.apache.druid.collections.QueueBasedSorter;
+import org.apache.druid.collections.Sorter;
 import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
@@ -37,6 +40,8 @@ import org.apache.druid.query.QueryTimeoutException;
 import org.apache.druid.query.context.ResponseContext;
 import org.apache.druid.query.filter.Filter;
 import org.apache.druid.segment.BaseObjectColumnValueSelector;
+import org.apache.druid.segment.QueryableIndex;
+import org.apache.druid.segment.QueryableIndexOrderbyRunner;
 import org.apache.druid.segment.Segment;
 import org.apache.druid.segment.StorageAdapter;
 import org.apache.druid.segment.VirtualColumn;
@@ -54,6 +59,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 
 public class ScanQueryEngine
@@ -67,7 +73,12 @@ public class ScanQueryEngine
       @Nullable final QueryMetrics<?> queryMetrics
   )
   {
-    if (segment.asQueryableIndex() != null && segment.asQueryableIndex().isFromTombstone()) {
+    QueryableIndex queryableIndex = segment.asQueryableIndex();
+    if (!query.canPushSort() && Objects.nonNull(queryableIndex) && "true".equals(query.getContext().getOrDefault("queryableIndexOrderbyRunner", "false"))) {
+      return new QueryableIndexOrderbyRunner().process(query, segment, responseContext, queryMetrics, queryableIndex);
+    }
+
+    if (queryableIndex != null && queryableIndex.isFromTombstone()) {
       return Sequences.empty();
     }
 
@@ -124,7 +135,9 @@ public class ScanQueryEngine
     final SegmentId segmentId = segment.getId();
 
     final Filter filter = Filters.convertToCNFFromQueryContext(query, Filters.toFilter(query.getFilter()));
-
+    if (!query.canPushSort()) {
+      return processWithMultiColumnSort(query, legacy, hasTimeout, timeoutAt, adapter, allColumns, intervals, segmentId, filter, queryMetrics);
+    }
     // If the row count is not set, set it to 0, else do nothing.
     responseContext.addRowScanCount(0);
     final long limit = calculateRemainingScanRowsLimit(query, responseContext);
@@ -234,6 +247,7 @@ public class ScanQueryEngine
                             final Object value;
 
                             if (legacy && allColumns.get(i).equals(LEGACY_TIMESTAMP_KEY)) {
+                              Preconditions.checkNotNull(selector);
                               value = DateTimes.utc((long) selector.getObject());
                             } else {
                               value = selector == null ? null : selector.getObject();
@@ -252,6 +266,127 @@ public class ScanQueryEngine
             ))
     );
   }
+
+  public Sequence<ScanResultValue> processWithMultiColumnSort(
+      ScanQuery query,
+      boolean legacy,
+      boolean hasTimeout,
+      long timeoutAt,
+      StorageAdapter adapter,
+      List<String> allColumns,
+      List<Interval> intervals,
+      SegmentId segmentId,
+      Filter filter,
+      @Nullable final QueryMetrics<?> queryMetrics
+  )
+  {
+
+    int limit;
+    if (query.getScanRowsLimit() > Integer.MAX_VALUE) {
+      limit = Integer.MAX_VALUE;
+    } else {
+      limit = Math.toIntExact(query.getScanRowsLimit());
+    }
+
+    return Sequences.concat(
+        adapter
+            .makeCursors(
+                filter,
+                intervals.get(0),
+                query.getVirtualColumns(),
+                Granularities.ALL,
+                query.getTimeOrder().equals(ScanQuery.Order.DESCENDING) ||
+                (query.getTimeOrder().equals(ScanQuery.Order.NONE) && query.isDescending()),
+                queryMetrics
+            )
+            .map(cursor -> new BaseSequence<>(
+                new BaseSequence.IteratorMaker<ScanResultValue, Iterator<ScanResultValue>>()
+                {
+                  @Override
+                  public Iterator<ScanResultValue> make()
+                  {
+                    final List<BaseObjectColumnValueSelector> columnSelectors = new ArrayList<>(allColumns.size());
+
+                    for (String column : allColumns) {
+                      final BaseObjectColumnValueSelector selector;
+
+                      if (legacy && LEGACY_TIMESTAMP_KEY.equals(column)) {
+                        selector = cursor.getColumnSelectorFactory()
+                                         .makeColumnValueSelector(ColumnHolder.TIME_COLUMN_NAME);
+                      } else {
+                        selector = cursor.getColumnSelectorFactory().makeColumnValueSelector(column);
+                      }
+
+                      columnSelectors.add(selector);
+                    }
+
+                    return new Iterator<ScanResultValue>()
+                    {
+                      @Override
+                      public boolean hasNext()
+                      {
+                        return !cursor.isDone();
+                      }
+
+                      @Override
+                      public ScanResultValue next()
+                      {
+                        if (!hasNext()) {
+                          throw new NoSuchElementException();
+                        }
+                        if (hasTimeout && System.currentTimeMillis() >= timeoutAt) {
+                          throw new QueryTimeoutException(StringUtils.nonStrictFormat("Query [%s] timed out", query.getId()));
+                        }
+                        Sorter<Object> sorter = new QueueBasedSorter<>(limit, query.getOrderByNoneTimeResultOrdering());
+                        rowsToCompactedList(sorter);
+                        final List<List<Object>> sortedElements = new ArrayList<>(sorter.size());
+                        Iterators.addAll(sortedElements, sorter.drainElement());
+                        return new ScanResultValue(segmentId.toString(), allColumns, sortedElements);
+                      }
+
+                      @Override
+                      public void remove()
+                      {
+                        throw new UnsupportedOperationException();
+                      }
+
+                      private void rowsToCompactedList(Sorter<Object> sorter)
+                      {
+                        for (; !cursor.isDone(); cursor.advance()) {
+                          final List<Object> theEvent = new ArrayList<>(allColumns.size());
+                          for (int j = 0; j < allColumns.size(); j++) {
+                            theEvent.add(getColumnValue(j));
+                          }
+                          sorter.add(theEvent);
+                        }
+                      }
+
+                      private Object getColumnValue(int i)
+                      {
+                        final BaseObjectColumnValueSelector selector = columnSelectors.get(i);
+                        final Object value;
+
+                        if (legacy && allColumns.get(i).equals(LEGACY_TIMESTAMP_KEY)) {
+                          Preconditions.checkNotNull(selector);
+                          value = DateTimes.utc((long) selector.getObject());
+                        } else {
+                          value = selector == null ? null : selector.getObject();
+                        }
+
+                        return value;
+                      }
+                    };
+                  }
+
+                  @Override
+                  public void cleanup(Iterator<ScanResultValue> iterFromMake)
+                  {
+                  }
+                }
+            ))
+    );
+  }
+
 
   /**
    * If we're performing time-ordering, we want to scan through the first `limit` rows in each segment ignoring the number

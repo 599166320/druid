@@ -19,6 +19,8 @@
 
 package org.apache.druid.server.coordinator.duty;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Lists;
 import org.apache.druid.client.ImmutableDruidDataSource;
 import org.apache.druid.java.util.common.DateTimes;
@@ -30,6 +32,8 @@ import org.apache.druid.server.coordinator.DruidCoordinator;
 import org.apache.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import org.apache.druid.server.coordinator.ReplicationThrottler;
 import org.apache.druid.server.coordinator.rules.BroadcastDistributionRule;
+import org.apache.druid.server.coordinator.rules.DropRule;
+import org.apache.druid.server.coordinator.rules.ForeverDropRule;
 import org.apache.druid.server.coordinator.rules.Rule;
 import org.apache.druid.timeline.DataSegment;
 import org.apache.druid.timeline.SegmentId;
@@ -38,6 +42,9 @@ import org.joda.time.DateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -45,6 +52,10 @@ public class RunRules implements CoordinatorDuty
 {
   private static final EmittingLogger log = new EmittingLogger(RunRules.class);
   private static final int MAX_MISSING_RULES = 10;
+
+  public static final Cache<String, AtomicLong> MAX_DROP_RULE_CACHE = Caffeine.newBuilder().initialCapacity(5).build();
+
+  public static final AtomicLong DEFAULT_DROP_NUM = new AtomicLong(0);
 
   private final ReplicationThrottler replicatorThrottler;
 
@@ -128,12 +139,13 @@ public class RunRules implements CoordinatorDuty
       }
       List<Rule> rules = databaseRuleManager.getRulesWithDefault(segment.getDataSource());
       boolean foundMatchingRule = false;
-      for (Rule rule : rules) {
-        if (rule.appliesTo(segment, now)) {
+      final int ruleSize = rules.size();
+      for (int i = 0; i < ruleSize; i++) {
+        if (rules.get(i).appliesTo(segment, now)) {
           if (
               stats.getGlobalStat(
                   "totalNonPrimaryReplicantsLoaded") >= paramsWithReplicationManager.getCoordinatorDynamicConfig()
-                                                                                   .getMaxNonPrimaryReplicantsToLoad()
+                                                                                    .getMaxNonPrimaryReplicantsToLoad()
               && !paramsWithReplicationManager.getReplicationManager().isLoadPrimaryReplicantsOnly()
           ) {
             log.info(
@@ -142,9 +154,17 @@ public class RunRules implements CoordinatorDuty
             );
             paramsWithReplicationManager.getReplicationManager().setLoadPrimaryReplicantsOnly(true);
           }
-          stats.accumulate(rule.run(coordinator, paramsWithReplicationManager, segment));
+          stats.accumulate(rules.get(i).run(coordinator, paramsWithReplicationManager, segment));
           foundMatchingRule = true;
           break;
+        } else {
+          if (ruleSize == i + 1 && rules.get(i + 1) instanceof ForeverDropRule) {
+            //倒数第二个规则是loadRule,最后一个是dropRule
+            continue;
+          } else if (MAX_DROP_RULE_CACHE.get(segment.getDataSource(),o-> DEFAULT_DROP_NUM).decrementAndGet() > 0) {
+            //只是删除本层次的副本而已，不会修改used字段
+            rules.get(i).dropAllExpireSegments(paramsWithReplicationManager, segment);
+          }
         }
       }
 

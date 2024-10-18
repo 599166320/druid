@@ -32,5 +32,6 @@ public class SqlHttpModule implements Module
   public void configure(Binder binder)
   {
     Jerseys.addResource(binder, SqlResource.class);
+    Jerseys.addResource(binder, QueryLogResource.class);
   }
 }

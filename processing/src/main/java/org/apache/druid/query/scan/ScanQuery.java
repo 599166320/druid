@@ -28,13 +28,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import org.apache.druid.java.util.common.IAE;
-import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.Pair;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.UOE;
+import org.apache.druid.java.util.common.guava.Comparators;
 import org.apache.druid.query.BaseQuery;
 import org.apache.druid.query.DataSource;
 import org.apache.druid.query.Druids;
+import org.apache.druid.query.InlineDataSource;
 import org.apache.druid.query.Queries;
 import org.apache.druid.query.filter.DimFilter;
 import org.apache.druid.query.spec.QuerySegmentSpec;
@@ -42,12 +43,14 @@ import org.apache.druid.segment.VirtualColumns;
 import org.apache.druid.segment.column.ColumnHolder;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class ScanQuery extends BaseQuery<ScanResultValue>
 {
@@ -248,19 +251,6 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
     this.maxSegmentPartitionsOrderedInMemory = validateAndGetMaxSegmentPartitionsOrderedInMemory();
   }
 
-  /**
-   * Verifies that the ordering of a query is solely determined by {@link #getTimeOrder()}. Required to actually
-   * execute queries, because {@link #getOrderBys()} is not yet understood by the query engines.
-   *
-   * @throws IllegalStateException if the ordering is not solely determined by {@link #getTimeOrder()}
-   */
-  public static void verifyOrderByForNativeExecution(final ScanQuery query)
-  {
-    if (query.getTimeOrder() == Order.NONE && !query.getOrderBys().isEmpty()) {
-      throw new ISE("Cannot execute query with orderBy %s", query.getOrderBys());
-    }
-  }
-
   private Integer validateAndGetMaxRowsQueuedForOrdering()
   {
     final Integer maxRowsQueuedForOrdering =
@@ -430,9 +420,6 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   @Override
   public Ordering<ScanResultValue> getResultOrdering()
   {
-    // No support yet for actually executing queries with non-time orderBy.
-    verifyOrderByForNativeExecution(this);
-
     if (timeOrder == Order.NONE) {
       return Ordering.natural();
     }
@@ -443,6 +430,63 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
             : Comparator.<ScanResultValue>naturalOrder().reversed()
         )
     );
+  }
+
+  public List<Integer> getSortColumnIdxs()
+  {
+    List<String> allColumns;
+    if (legacy && !getColumns().contains(ScanQueryEngine.LEGACY_TIMESTAMP_KEY)) {
+      allColumns = new ArrayList<>(getColumns().size() + 1);
+      allColumns.add(ScanQueryEngine.LEGACY_TIMESTAMP_KEY);
+    } else {
+      allColumns = new ArrayList<>(getColumns().size());
+    }
+
+    allColumns.addAll(getColumns());
+    return getOrderBys()
+        .stream()
+        .map(orderBy -> allColumns.indexOf(orderBy.getColumnName()))
+        .collect(Collectors.toList());
+  }
+
+  public Ordering<List<Object>> getOrderByNoneTimeResultOrdering()
+  {
+    List<String> orderByDirection = getOrderBys().stream()
+                                                 .map(orderBy -> orderBy.getOrder().toString())
+                                                 .collect(Collectors.toList());
+
+
+    Ordering<Comparable>[] orderings = new Ordering[orderByDirection.size()];
+    for (int i = 0; i < orderByDirection.size(); i++) {
+      orderings[i] = ScanQuery.Order.ASCENDING.equals(ScanQuery.Order.fromString(orderByDirection.get(i)))
+                     ? Comparators.naturalNullsFirst()
+                     : Comparators.<Comparable>naturalNullsFirst().reverse();
+    }
+
+    Comparator<List<Object>> comparator = new Comparator<List<Object>>()
+    {
+
+      List<Integer> sortColumnIdxs = getSortColumnIdxs();
+
+      @Override
+      public int compare(
+          List<Object> o1,
+          List<Object> o2
+      )
+      {
+        for (int i = 0; i < sortColumnIdxs.size(); i++) {
+          int compare = orderings[i].compare(
+              (Comparable) o1.get(sortColumnIdxs.get(i)),
+              (Comparable) o2.get(sortColumnIdxs.get(i))
+          );
+          if (compare != 0) {
+            return compare;
+          }
+        }
+        return 0;
+      }
+    };
+    return Ordering.from(comparator);
   }
 
   @Nullable
@@ -495,6 +539,30 @@ public class ScanQuery extends BaseQuery<ScanResultValue>
   {
     return Druids.ScanQueryBuilder.copy(this).context(computeOverriddenContext(getContext(), contextOverrides)).build();
   }
+
+  /**
+   * Report whether the sort can be pushed into the Cursor, or must be done as a
+   * separate sort step.
+   */
+  public boolean canPushSort()
+  {
+    // Can push non-existent sort.
+    if (orderBys.size() == 0) {
+      return true;
+    }
+    // Cursor can sort by only one column.
+    if (orderBys.size() > 1) {
+      return false;
+    }
+    // Inline datasources can't sort
+    if (getDataSource() instanceof InlineDataSource) {
+      return false;
+    }
+    // Cursor can't sort by the __time column
+    return ColumnHolder.TIME_COLUMN_NAME.equals(orderBys.get(0).getColumnName());
+  }
+
+
 
   @Override
   public boolean equals(Object o)

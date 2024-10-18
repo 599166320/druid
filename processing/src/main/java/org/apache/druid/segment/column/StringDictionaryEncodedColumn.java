@@ -238,6 +238,13 @@ public class StringDictionaryEncodedColumn implements DictionaryEncodedColumn<St
         }
 
         @Override
+        public Object getObjectOrDictionaryId()
+        {
+          //For multi value dimensions, temporarily select the dictionary ID of the first index
+          return getRow().get(0);
+        }
+
+        @Override
         public Class classOfObject()
         {
           return Object.class;
@@ -350,6 +357,12 @@ public class StringDictionaryEncodedColumn implements DictionaryEncodedColumn<St
         public Object getObject()
         {
           return lookupName(getRowValue());
+        }
+
+        @Override
+        public Object getObjectOrDictionaryId()
+        {
+          return getRowValue();
         }
 
         @Override

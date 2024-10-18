@@ -90,12 +90,15 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
     // in single thread and in Jetty thread instead of processing thread
     return (queryPlus, responseContext) -> {
       ScanQuery query = (ScanQuery) queryPlus.getQuery();
-      ScanQuery.verifyOrderByForNativeExecution(query);
 
       // Note: this variable is effective only when queryContext has a timeout.
       // See the comment of ResponseContext.Key.TIMEOUT_AT.
       final long timeoutAt = System.currentTimeMillis() + QueryContexts.getTimeout(queryPlus.getQuery());
       responseContext.putTimeoutTime(timeoutAt);
+
+      if (!query.canPushSort()) {
+        return new ScanQueryOrderByRunner(queryProcessingPool, queryRunners).run(queryPlus, responseContext);
+      }
 
       if (query.getTimeOrder().equals(ScanQuery.Order.NONE)) {
         // Use normal strategy
@@ -180,12 +183,12 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
             // there should be no interval overlap.  We create a list of lists so we can create a sequence of sequences.
             // There's no easy way to convert a LinkedHashMap to a sequence because it's non-iterable.
             List<List<QueryRunner<ScanResultValue>>> groupedRunners =
-                partitionsGroupedByInterval.entrySet()
+                partitionsGroupedByInterval.values()
                                            .stream()
-                                           .map(entry -> entry.getValue()
-                                                              .stream()
-                                                              .map(segQueryRunnerPair -> segQueryRunnerPair.rhs)
-                                                              .collect(Collectors.toList()))
+                                           .map(pairs -> pairs
+                                               .stream()
+                                               .map(segQueryRunnerPair -> segQueryRunnerPair.rhs)
+                                               .collect(Collectors.toList()))
                                            .collect(Collectors.toList());
 
             return nWayMergeAndLimit(groupedRunners, queryPlus, responseContext);
@@ -365,8 +368,6 @@ public class ScanQueryRunnerFactory implements QueryRunnerFactory<ScanResultValu
       if (!(query instanceof ScanQuery)) {
         throw new ISE("Got a [%s] which isn't a %s", query.getClass(), ScanQuery.class);
       }
-
-      ScanQuery.verifyOrderByForNativeExecution((ScanQuery) query);
 
       // it happens in unit tests
       final Long timeoutAt = responseContext.getTimeoutTime();

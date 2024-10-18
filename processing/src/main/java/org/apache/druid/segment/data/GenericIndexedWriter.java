@@ -51,6 +51,8 @@ public class GenericIndexedWriter<T> implements Serializer
 {
   private static final int PAGE_SIZE = 4096;
 
+  private static final int FILE_SIZE = (int) ((Integer.MAX_VALUE & ~PAGE_SIZE) * 0.8);
+
   private static final MetaSerdeHelper<GenericIndexedWriter> SINGLE_FILE_META_SERDE_HELPER = MetaSerdeHelper
       .firstWriteByte((GenericIndexedWriter x) -> GenericIndexed.VERSION_ONE)
       .writeByte(
@@ -166,7 +168,7 @@ public class GenericIndexedWriter<T> implements Serializer
       ObjectStrategy<T> strategy
   )
   {
-    this(segmentWriteOutMedium, filenameBase, strategy, Integer.MAX_VALUE & ~PAGE_SIZE);
+    this(segmentWriteOutMedium, filenameBase, strategy, FILE_SIZE);
   }
 
   public GenericIndexedWriter(
@@ -352,7 +354,7 @@ public class GenericIndexedWriter<T> implements Serializer
         headerOutLong.size()
     );
     Preconditions.checkState(
-        (((long) headerOutLong.size()) * Long.BYTES) < (Integer.MAX_VALUE & ~PAGE_SIZE),
+        (((long) headerOutLong.size()) * Long.BYTES) < FILE_SIZE,
         "Wrote[%s] bytes in header, which is too many.",
         (((long) headerOutLong.size()) * Long.BYTES)
     );

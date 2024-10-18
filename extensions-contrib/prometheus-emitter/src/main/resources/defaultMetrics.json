@@ -17,6 +17,11 @@
   "query/success/count" : { "dimensions" : [], "type" : "count", "help": "Number of queries successfully processed"},
   "query/failed/count" : { "dimensions" : [], "type" : "count", "help": "Number of failed queries"},
   "query/interrupted/count" : { "dimensions" : [], "type" : "count", "help": "Number of queries interrupted due to cancellation or timeout"},
+  "query/timeout/count" : { "dimensions" : [], "type" : "count", "help": "Number of timed out queries"},
+
+  "sqlQuery/time" : { "dimensions" : ["dataSource","success"], "type" : "timer", "help": "Milliseconds taken to complete a SQL query"},
+  "sqlQuery/planningTimeMs" : { "dimensions" : ["dataSource","success"], "type" : "timer", "help": "Milliseconds taken to plan a SQL to native query"},
+  "sqlQuery/bytes" : { "dimensions" : ["dataSource","success"], "type" : "count", "help": "Number of bytes returned in the SQL query response"},
 
   "query/cache/delta/numEntries" : { "dimensions" : [], "type" : "gauge", "help": "Number of entries in cache"},
   "query/cache/delta/sizeBytes" : { "dimensions" : [], "type" : "gauge", "help": "Size of cache in bytes."},

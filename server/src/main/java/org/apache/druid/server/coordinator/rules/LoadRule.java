@@ -60,8 +60,8 @@ public abstract class LoadRule implements Rule
   public final String NON_PRIMARY_ASSIGNED_COUNT = "totalNonPrimaryReplicantsLoaded";
   public static final String REQUIRED_CAPACITY = "requiredCapacity";
 
-  private final Object2IntMap<String> targetReplicants = new Object2IntOpenHashMap<>();
-  private final Object2IntMap<String> currentReplicants = new Object2IntOpenHashMap<>();
+  protected final Object2IntMap<String> targetReplicants = new Object2IntOpenHashMap<>();
+  protected final Object2IntMap<String> currentReplicants = new Object2IntOpenHashMap<>();
 
   // Cache to hold unused results from strategy call in assignPrimary
   private final Map<String, ServerHolder> strategyCache = new HashMap<>();
@@ -452,7 +452,7 @@ public abstract class LoadRule implements Rule
     return false;
   }
 
-  private static int dropForTier(
+  protected static int dropForTier(
       final int numToDrop,
       final NavigableSet<ServerHolder> holdersInTier,
       final DataSegment segment,
@@ -546,6 +546,32 @@ public abstract class LoadRule implements Rule
              .append(entry.getIntValue())
              .append("/")
              .append(targetReplicants.getInt(tier))
+             .append("]");
+    }
+    return builder.append("]").toString();
+  }
+
+  protected String getCurrentReplicationLogString()
+  {
+    StringBuilder builder = new StringBuilder("Current replication: [");
+    for (final Object2IntMap.Entry<String> entry : currentReplicants.object2IntEntrySet()) {
+      builder.append("[")
+             .append(entry.getKey())
+             .append(":")
+             .append(entry.getIntValue())
+             .append("]");
+    }
+    return builder.append("]").toString();
+  }
+
+  protected String getTargetReplicationLogString()
+  {
+    StringBuilder builder = new StringBuilder("target replication: [");
+    for (final Object2IntMap.Entry<String> entry : targetReplicants.object2IntEntrySet()) {
+      builder.append("[")
+             .append(entry.getKey())
+             .append(":")
+             .append(entry.getIntValue())
              .append("]");
     }
     return builder.append("]").toString();
